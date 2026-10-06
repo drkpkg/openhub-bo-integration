@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+
+  python:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.10", "3.13"]
+    defaults:
+      run:
+        working-directory: bindings/python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv sync --all-packages
+      - run: uv run --no-sync pytest -q
+      - run: uv run --no-sync --with ruff ruff check core qr fx accounts payouts examples
+      - run: uv run --no-sync --with mypy mypy core/python/openhub_bo qr/python/openhub_bo fx/python/openhub_bo accounts/python/openhub_bo payouts/python/openhub_bo
+
+  typescript:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bindings/typescript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: bindings/typescript
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@0.2.129
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:wasm
+      - run: pnpm run typecheck
+      - run: pnpm test
+
+  ruby:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bindings/ruby
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+      - run: gem install --no-document rb_sys rake minitest bigdecimal
+      - run: rake compile test

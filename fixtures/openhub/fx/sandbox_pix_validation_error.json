@@ -1,0 +1,1 @@
+{"data":["glosa no puede estar vacía","cpf no puede ser nulo","moneda es requerida","webhook es requerido","monto no puede ser nulo","canal es requerido","numeroReferencia no puede ser nulo"],"error":true,"code":"EG-00002","message":"Errores de validación"}

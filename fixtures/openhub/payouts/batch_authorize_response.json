@@ -1,0 +1,1 @@
+{"code":"00","message":"success","data":{"nroLote":"2601191040","processId":"66ec5b3d-61ea-4254-b366-7104545aa3c6","transacciones":[{"transaccionId":"001001","estado":"PENDIENTE","numeroReferencia":"502125545442601","mensaje":"Transacción en proceso."},{"transaccionId":"001002","estado":"ERROR","mensaje":"Codigo de banco no habilitado"}]}}

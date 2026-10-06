@@ -1,0 +1,11 @@
+{
+  "success": false,
+  "message": "Error al consultar estado de QR",
+  "errors": [
+    {
+      "field": "numeroReferencia",
+      "message": "Transacción no encontrada con número de referencia: 260825000010075",
+      "code": "TRANSACCION_NO_ENCONTRADA"
+    }
+  ]
+}

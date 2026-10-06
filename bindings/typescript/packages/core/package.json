@@ -1,0 +1,16 @@
+{
+  "name": "@openhub-bo/core",
+  "version": "0.1.0",
+  "description": "Base compartida (sesión, transporte, errores) de los clientes openhub-bo para Red Enlace (ATC) OpenHub, Bolivia",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./testing": { "types": "./dist/testing.d.ts", "default": "./dist/testing.js" }
+  },
+  "files": ["dist", "wasm", "README.md"],
+  "keywords": ["bolivia", "payments", "openhub", "red enlace", "atc"],
+  "sideEffects": false
+}

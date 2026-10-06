@@ -1,0 +1,12 @@
+# frozen_string_literal: true
+
+require_relative "../support/native_gem"
+
+GEMSPEC = Gem::Specification.load(File.expand_path("openhub-bo-qr.gemspec", __dir__))
+
+NativeGemTasks.define(
+  gem_dir: __dir__,
+  pkg: "qr",
+  crates: ["openhub-core", "openhub-qr"],
+  gemspec: GEMSPEC
+)

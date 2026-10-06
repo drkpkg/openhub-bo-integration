@@ -1,0 +1,1 @@
+{"success":false,"message":"Error de validación","errors":[{"field":"webhook","message":"La configuración de webhook es requerida","code":"REQUIRED_FIELD"},{"field":"numeroReferencia","message":"El número de referencia debe contener solo dígitos numéricos","code":"INVALID_FORMAT"}]}

@@ -1,0 +1,18 @@
+[package]
+name = "openhub-bo-accounts-rb"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Native extension of the openhub-bo-accounts Ruby gem"
+
+[lib]
+name = "native"
+crate-type = ["cdylib"]
+
+[dependencies]
+magnus = "0.9"
+openhub-core = { path = "vendor/openhub-core" }
+openhub-accounts = { path = "vendor/openhub-accounts" }
+
+# Standalone: the crates are vendored by `rake vendor` (see support/native_gem.rb).
+[workspace]

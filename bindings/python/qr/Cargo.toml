@@ -1,0 +1,16 @@
+[package]
+name = "openhub-bo-qr-py"
+description = "Native module of the openhub-bo-qr Python package"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+name = "openhub_bo_qr_native"
+crate-type = ["cdylib"]
+
+[dependencies]
+openhub-core = { path = "../../../crates/openhub-core" }
+pyo3 = { version = "0.29.3", features = ["abi3-py310"] }
+openhub-qr = { path = "../../../crates/openhub-qr" }

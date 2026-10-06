@@ -1,0 +1,16 @@
+[package]
+name = "openhub-bo-qr-wasm"
+description = "WASM module of the @openhub-bo/qr npm package"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+name = "openhub_bo_qr_wasm"
+crate-type = ["cdylib"]
+
+[dependencies]
+openhub-core = { path = "../../../../crates/openhub-core" }
+openhub-qr = { path = "../../../../crates/openhub-qr" }
+wasm-bindgen = "0.2"

@@ -1,0 +1,1 @@
+{"success":false,"message":"Error de validación","errors":[{"field":"monto","message":"El monto mínimo permitido es 50","code":"INVALID_VALUE"}]}

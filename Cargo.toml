@@ -1,0 +1,22 @@
+[workspace]
+resolver = "3"
+# TypeScript (WASM) and Ruby bindings are separate Cargo workspaces.
+exclude = ["bindings/typescript", "bindings/ruby"]
+members = [
+    "crates/openhub-core",
+    "crates/openhub-qr",
+    "crates/openhub-fx",
+    "crates/openhub-accounts",
+    "crates/openhub-payouts",
+    "bindings/python/core",
+    "bindings/python/qr",
+    "bindings/python/fx",
+    "bindings/python/accounts",
+    "bindings/python/payouts",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+# TODO: choose a license before publishing (MIT / Apache-2.0 / proprietary).

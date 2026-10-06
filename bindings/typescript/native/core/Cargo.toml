@@ -1,0 +1,16 @@
+[package]
+name = "openhub-bo-core-wasm"
+description = "WASM module of the @openhub-bo/core npm package"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+name = "openhub_bo_core_wasm"
+crate-type = ["cdylib"]
+
+[dependencies]
+openhub-core = { path = "../../../../crates/openhub-core" }
+
+wasm-bindgen = "0.2"

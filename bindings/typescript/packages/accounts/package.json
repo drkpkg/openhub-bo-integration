@@ -1,0 +1,14 @@
+{
+  "name": "@openhub-bo/accounts",
+  "version": "0.1.0",
+  "description": "Cuentas de comercio, saldos y movimientos de Red Enlace (ATC) OpenHub, Bolivia",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "files": ["dist", "wasm", "README.md"],
+  "keywords": ["bolivia", "saldos", "conciliación", "openhub", "red enlace", "atc"],
+  "sideEffects": false,
+  "dependencies": { "@openhub-bo/core": "workspace:*" }
+}

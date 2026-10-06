@@ -1,0 +1,18 @@
+# frozen_string_literal: true
+
+# Compiles and tests every openhub-bo gem (core first: the others depend on it).
+GEMS = %w[openhub-bo-core openhub-bo-qr openhub-bo-fx openhub-bo-accounts openhub-bo-payouts].freeze
+
+%i[compile test clean build].each do |name|
+  desc "Run `rake #{name}` in every native gem"
+  task name do
+    GEMS.each { |gem| Dir.chdir(File.join(__dir__, gem)) { sh "rake", name.to_s } }
+  end
+end
+
+desc "Build the openhub-bo metagem"
+task :build_meta do
+  Dir.chdir(File.join(__dir__, "openhub-bo")) { sh "gem", "build", "openhub-bo.gemspec", "--output", "openhub-bo-0.1.0.gem" }
+end
+
+task default: %i[compile test]

@@ -1,0 +1,16 @@
+[package]
+name = "openhub-bo-fx-py"
+description = "Native module of the openhub-bo-fx Python package"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+name = "openhub_bo_fx_native"
+crate-type = ["cdylib"]
+
+[dependencies]
+openhub-core = { path = "../../../crates/openhub-core" }
+pyo3 = { version = "0.29.3", features = ["abi3-py310"] }
+openhub-fx = { path = "../../../crates/openhub-fx" }

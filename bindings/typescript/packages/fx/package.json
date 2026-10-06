@@ -1,0 +1,14 @@
+{
+  "name": "@openhub-bo/fx",
+  "version": "0.1.0",
+  "description": "Cobros QR con PIX, USDT/USDC (Koibanx) y Binance Pay vía Red Enlace (ATC) OpenHub, Bolivia",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "files": ["dist", "wasm", "README.md"],
+  "keywords": ["bolivia", "pix", "binance", "usdt", "usdc", "qr", "openhub", "red enlace", "atc"],
+  "sideEffects": false,
+  "dependencies": { "@openhub-bo/core": "workspace:*" }
+}

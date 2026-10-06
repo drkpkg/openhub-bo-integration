@@ -1,0 +1,16 @@
+[package]
+name = "openhub-bo-fx-wasm"
+description = "WASM module of the @openhub-bo/fx npm package"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+name = "openhub_bo_fx_wasm"
+crate-type = ["cdylib"]
+
+[dependencies]
+openhub-core = { path = "../../../../crates/openhub-core" }
+openhub-fx = { path = "../../../../crates/openhub-fx" }
+wasm-bindgen = "0.2"

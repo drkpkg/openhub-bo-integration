@@ -1,0 +1,23 @@
+{
+  "success": true,
+  "message": "Estado de QR consultado exitosamente",
+  "data": {
+    "estado": "PENDIENTE",
+    "mensaje": "QR generado, esperando pago",
+    "importe": 10.5,
+    "moneda": "BOB",
+    "numeroReferenciaOriginante": "4023",
+    "numeroReferencia": "200393",
+    "clienteOrigen": {
+      "nombreCliente": "",
+      "numeroCuenta": "",
+      "ciNitCliente": ""
+    },
+    "bancoOrigen": {
+      "numeroOrdenAch": "",
+      "codigoBanco": "",
+      "nombreBanco": "",
+      "fechaTransaccion": ""
+    }
+  }
+}

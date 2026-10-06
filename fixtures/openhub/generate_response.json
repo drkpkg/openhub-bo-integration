@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "message": "QR generado exitosamente",
+  "data": {
+    "numeroReferencia": "153980",
+    "estado": "PENDIENTE",
+    "fechaExpiracion": "2026-03-12T18:01:52.304302",
+    "moneda": "BOB",
+    "monto": 10.5,
+    "numeroReferenciaOriginante": "2320",
+    "qr": "iVBORw0KGgoAAAANSUhEUgAAAT8AAAE/CAYAAAAwps"
+  }
+}

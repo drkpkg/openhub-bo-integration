@@ -1,0 +1,19 @@
+[workspace]
+resolver = "3"
+members = [
+    "native/core",
+    "native/qr",
+    "native/fx",
+    "native/accounts",
+    "native/payouts",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1

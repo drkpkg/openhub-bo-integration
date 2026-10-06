@@ -1,0 +1,1 @@
+{"success":false,"message":"Error al anular QR","errors":[{"field":"numeroReferencia","message":"El QR ya está en estado CANCELADO, no se puede anular (solo se anulan QR en estado PENDIENTE)","code":"ESTADO_INVALIDO"}]}

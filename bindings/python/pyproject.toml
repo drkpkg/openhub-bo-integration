@@ -1,0 +1,37 @@
+# uv workspace for the openhub-bo Python distributions (no package of its own).
+#   uv sync --all-packages        builds both native extensions (editable)
+#   uv run --no-sync pytest
+
+[tool.uv.workspace]
+members = ["core", "qr", "fx", "accounts", "payouts", "meta"]
+
+[tool.uv.sources]
+openhub-bo-core = { workspace = true }
+openhub-bo-qr = { workspace = true }
+openhub-bo-fx = { workspace = true }
+openhub-bo-accounts = { workspace = true }
+openhub-bo-payouts = { workspace = true }
+openhub-bo = { workspace = true }
+
+[dependency-groups]
+dev = ["maturin>=1.9,<2", "pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["core/tests", "qr/tests", "fx/tests", "accounts/tests", "payouts/tests"]
+addopts = ["--import-mode=importlib"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["openhub_bo"]
+
+[tool.mypy]
+strict = true
+mypy_path = ["core/python", "qr/python", "fx/python", "accounts/python", "payouts/python"]
+namespace_packages = true
+explicit_package_bases = true

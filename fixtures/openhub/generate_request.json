@@ -1,0 +1,14 @@
+{
+  "glosa": "Pago de servicio",
+  "moneda": "BOB",
+  "monto": 10.5,
+  "numeroReferencia": "4024",
+  "vigencia": 45,
+  "idEstablecimiento": 422717,
+  "nombreEstablecimiento": "Tienda Central",
+  "webhook": {
+    "url": "https://dominio.com/qr/confirmed",
+    "key": "x-api-key",
+    "value": "46bc-b2a2-ea12258c99ab"
+  }
+}

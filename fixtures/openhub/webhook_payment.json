@@ -1,0 +1,18 @@
+{
+  "detalleRespuesta": "Transacción procesada correctamente",
+  "codigoRespuesta": "SUCCESS",
+  "numeroReferencia": "233324",
+  "monto": 10.5,
+  "fechaHoraTransaccion": "2026-05-26T14:35:20",
+  "moneda": "BOB",
+  "clienteOrigen": {
+    "ciCliente": "12345678",
+    "nombreCliente": "Juan Perez",
+    "numeroCuenta": "1234567890"
+  },
+  "bancoOrigen": {
+    "codigoBanco": "101",
+    "nombreBanco": "Banco Unión",
+    "numeroOrdenAch": "987654321"
+  }
+}

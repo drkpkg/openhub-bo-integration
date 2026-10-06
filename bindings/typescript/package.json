@@ -1,0 +1,24 @@
+{
+  "name": "openhub-bo-typescript",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build:wasm": "node scripts/build-wasm.mjs",
+    "build": "tsc -b packages/core packages/qr packages/fx packages/accounts packages/payouts",
+    "typecheck": "tsc -b packages/core packages/qr packages/fx packages/accounts packages/payouts && tsc -p tsconfig.tests.json",
+    "test": "node --test \"packages/*/test/*.test.ts\"",
+    "smoke": "node --env-file=../../.env examples/sandbox-smoke.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.0",
+    "@openhub-bo/core": "workspace:*",
+    "@openhub-bo/qr": "workspace:*",
+    "@openhub-bo/fx": "workspace:*",
+    "@openhub-bo/accounts": "workspace:*",
+    "@openhub-bo/payouts": "workspace:*"
+  }
+}

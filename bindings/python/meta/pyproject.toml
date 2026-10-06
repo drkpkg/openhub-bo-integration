@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "openhub-bo"
+version = "0.1.0"
+description = "Clientes para las APIs de cobro de Red Enlace (ATC) OpenHub, Bolivia. Instala solo los productos que necesitas con extras: openhub-bo[qr], openhub-bo[fx], openhub-bo[accounts], openhub-bo[payouts]"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["openhub-bo-core>=0.1.0,<0.2.0"]
+
+[project.optional-dependencies]
+qr = ["openhub-bo-qr>=0.1.0,<0.2.0"]
+fx = ["openhub-bo-fx>=0.1.0,<0.2.0"]
+accounts = ["openhub-bo-accounts>=0.1.0,<0.2.0"]
+payouts = ["openhub-bo-payouts>=0.1.0,<0.2.0"]
+all = ["openhub-bo[qr,fx,accounts,payouts]"]
+
+# Metapackage: no code of its own.
+[tool.hatch.build.targets.wheel]
+bypass-selection = true

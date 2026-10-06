@@ -1,0 +1,16 @@
+[package]
+name = "openhub-bo-payouts-wasm"
+description = "WASM module of the @openhub-bo/payouts npm package"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+name = "openhub_bo_payouts_wasm"
+crate-type = ["cdylib"]
+
+[dependencies]
+openhub-core = { path = "../../../../crates/openhub-core" }
+openhub-payouts = { path = "../../../../crates/openhub-payouts" }
+wasm-bindgen = "0.2"

@@ -1,0 +1,25 @@
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[project]
+name = "openhub-bo-qr"
+description = "Cobros con QR Simple y QR MLD-BCB vía Red Enlace (ATC) OpenHub, Bolivia"
+readme = "README.md"
+requires-python = ">=3.10"
+# Lockstep versioning: every openhub-bo package is released with the same version.
+dependencies = ["openhub-bo-core>=0.1.0,<0.2.0"]
+dynamic = ["version"]
+keywords = ["bolivia", "qr", "qr simple", "payments", "openhub", "red enlace", "atc"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Office/Business :: Financial",
+    "Typing :: Typed",
+]
+
+[tool.maturin]
+python-source = "python"
+module-name = "openhub_bo.qr._native"
+features = ["pyo3/extension-module"]
+exclude = ["**/__pycache__/**"]
