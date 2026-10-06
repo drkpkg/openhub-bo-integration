@@ -12,7 +12,8 @@
 #
 # Publishing uses trusted publishing (OIDC): no long-lived tokens in the repo.
 # Each registry must trust this workflow (repo drkpkg/openhub-bo-integration,
-# file release.yml, environment crates-io / pypi / testpypi / npm / rubygems); see
+# file release.yml, environment crates-io / pypi-<pkg> / testpypi-<pkg> / npm /
+# rubygems); see
 # docs/publicacion.md. crates.io and npm only trust packages that already exist,
 # so their first release uses a CARGO_REGISTRY_TOKEN / NPM_TOKEN secret instead.
 name: Release
@@ -189,18 +190,30 @@ jobs:
           cd "$RUNNER_TEMP"  # import the installed wheels, not anything in the workspace
           python -c "import json, openhub_bo.qr, openhub_bo.fx, openhub_bo.accounts, openhub_bo.payouts, openhub_bo.qr._native as n; print(json.loads(n.call('version', '{}')))"
 
+  # One job and environment per project: PyPI accepts only one pending publisher
+  # per (repository, workflow, environment), so each project needs its own.
   publish-pypi:
-    name: Publish to PyPI / TestPyPI
+    name: Publish ${{ matrix.project }} to PyPI / TestPyPI
     needs: [python-wheels, python-sdist, python-smoke]
     if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.target == 'testpypi'
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.target == 'testpypi' && 'testpypi' || 'pypi' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { pkg: core, project: openhub-bo-core }
+          - { pkg: qr, project: openhub-bo-qr }
+          - { pkg: fx, project: openhub-bo-fx }
+          - { pkg: accounts, project: openhub-bo-accounts }
+          - { pkg: payouts, project: openhub-bo-payouts }
+          - { pkg: meta, project: openhub-bo }
+    environment: ${{ github.event.inputs.target == 'testpypi' && 'testpypi' || 'pypi' }}-${{ matrix.pkg }}
     permissions:
       id-token: write
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: python-*
+          pattern: python-*-${{ matrix.pkg }}
           path: dist
           merge-multiple: true
       - uses: pypa/gh-action-pypi-publish@release/v1

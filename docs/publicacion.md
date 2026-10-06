@@ -18,7 +18,7 @@ Valores comunes para los cuatro registros:
 
 - Owner / repositorio: `drkpkg` / `openhub-bo-integration`
 - Workflow: `release.yml`
-- Environment: el indicado para cada registro (`crates-io`, `pypi`, `testpypi`, `npm`, `rubygems`)
+- Environment: el indicado para cada registro (`crates-io`, `pypi-<paquete>`, `testpypi-<paquete>`, `npm`, `rubygems`)
 
 En GitHub (*Settings → Environments*) conviene crear esos environments con
 **Required reviewers**: así cada publicación espera tu aprobación.
@@ -39,10 +39,23 @@ En GitHub (*Settings → Environments*) conviene crear esos environments con
 
 1. Activa 2FA en tu cuenta.
 2. En <https://pypi.org/manage/account/publishing/>, en *Add a new pending publisher*, registra
-   **cada uno de los 6 paquetes** con los valores de arriba y el environment `pypi`.
-   Con un *pending publisher* el nombre queda reservado hasta la primera publicación.
-3. Opcional, para ensayar: crea una cuenta en <https://test.pypi.org> y repite el paso 2 con el
-   environment `testpypi`. Luego, en *Actions → Release → Run workflow*, elige `testpypi`.
+   **cada uno de los 6 paquetes** con los valores de arriba y **su propio environment**. PyPI
+   rechaza dos *pending publishers* con el mismo repositorio, workflow y environment, por eso el
+   workflow publica cada proyecto en su propio job:
+
+   | Proyecto PyPI | Environment |
+   |---|---|
+   | `openhub-bo-core` | `pypi-core` |
+   | `openhub-bo-qr` | `pypi-qr` |
+   | `openhub-bo-fx` | `pypi-fx` |
+   | `openhub-bo-accounts` | `pypi-accounts` |
+   | `openhub-bo-payouts` | `pypi-payouts` |
+   | `openhub-bo` | `pypi-meta` |
+
+   Un *pending publisher* no reserva el nombre: hasta la primera publicación otro usuario podría
+   tomarlo.
+3. Opcional, para ensayar: crea una cuenta en <https://test.pypi.org> y repite el paso 2 con los
+   environments `testpypi-<paquete>`. Luego, en *Actions → Release → Run workflow*, elige `testpypi`.
 
 ### npm
 
