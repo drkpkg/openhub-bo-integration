@@ -81,6 +81,11 @@ const esc = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 const badge = (s) => { const [label, cls] = STATUS[s] || [s, "bg-gray-100 text-gray-600 ring-gray-500/20"];
   return `<span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${cls}">${esc(label)}</span>`; };
 const btnSecondary = "rounded-lg bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50";
+const simTag = (r) => r.simulated ? ` <span class="text-xs text-gray-400">simulado</span>` : "";
+const sandboxBox = `<div class="rounded-lg border border-dashed border-gray-300 p-3 text-left">
+    <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Sandbox</p>
+    <p class="mt-1 text-xs text-gray-500">En el sandbox nadie paga el QR. Esto envía al webhook la notificación de pago con el formato de ATC (pagador ficticio).</p>
+    <button id="simulate" class="mt-2 ${btnSecondary}">Simular pago</button></div>`;
 
 async function api(path, options = {}) {
   const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
@@ -130,7 +135,7 @@ function countdown(expiresAt) {
   tick(); timer = setInterval(tick, 1000);
 }
 
-function renderActive(status, message) {
+function renderActive(status, message, st = {}) {
   const box = $("active");
   const final = status !== "pending";
   if (final) { clearInterval(poll); clearInterval(timer); }
@@ -148,6 +153,8 @@ function renderActive(status, message) {
           <dt class="text-gray-500">Tipo</dt><dd>${active.kind === "mld" ? "QR MLD-BCB" : "QR Simple"}</dd>
           <dt class="text-gray-500">Ref. ATC</dt><dd class="font-mono">${esc(active.reference)}</dd>
           ${message ? `<dt class="text-gray-500">OpenHub</dt><dd>${esc(message)}</dd>` : ""}
+          ${st.payer ? `<dt class="text-gray-500">Pagó</dt><dd>${esc(st.payer)}${st.payerBank ? ` · ${esc(st.payerBank)}` : ""}</dd>` : ""}
+          ${status === "paid" ? `<dt class="text-gray-500">Origen</dt><dd>${st.simulated ? "Pago simulado, recibido por webhook" : "Confirmado por OpenHub"}</dd>` : ""}
         </dl>
         <div class="flex flex-wrap justify-center gap-2 sm:justify-start">
           ${final ? `<button id="next" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Siguiente cliente</button>`
@@ -155,6 +162,7 @@ function renderActive(status, message) {
                      ${active.kind === "simple" ? `<button id="void" class="${btnSecondary}">Anular cobro</button>` : ""}`}
         </div>
         <p id="activeErr" class="text-sm text-red-600"></p>
+        ${final ? "" : sandboxBox}
       </div>
     </div>`;
   if (!final) countdown(active.expiresAt);
@@ -162,7 +170,7 @@ function renderActive(status, message) {
 
 async function refresh() {
   if (!active) return;
-  try { const st = await api(`/api/qr/${active.kind}/${active.reference}`); renderActive(st.status, st.message); loadSales(); }
+  try { const st = await api(`/api/qr/${active.kind}/${active.reference}`); renderActive(st.status, st.message, st); loadSales(); }
   catch (e) { const el = $("activeErr"); if (el) el.textContent = e.message; }
 }
 
@@ -171,6 +179,11 @@ $("active").addEventListener("click", async (ev) => {
   if (ev.target.id === "void") {
     try { const st = await api(`/api/qr/simple/${active.reference}/cancel`, { method: "POST" }); renderActive(st.status, st.message); loadSales(); }
     catch (e) { $("activeErr").textContent = e.message; }
+  }
+  if (ev.target.id === "simulate") {
+    ev.target.disabled = true; ev.target.textContent = "Enviando webhook…";
+    try { const st = await api(`/api/qr/${active.kind}/${active.reference}/simulate`, { method: "POST" }); renderActive(st.status, st.message, st); loadSales(); }
+    catch (e) { $("activeErr").textContent = e.message; ev.target.disabled = false; ev.target.textContent = "Simular pago"; }
   }
   if (ev.target.id === "next") {
     active = null; amount = "0";
@@ -205,7 +218,7 @@ async function loadSales() {
       <td class="px-5 py-2 text-gray-500">${new Date(r.createdAt).toLocaleTimeString("es-BO", { hour: "2-digit", minute: "2-digit" })}</td>
       <td class="px-5 py-2">${esc(r.label)}</td>
       <td class="px-5 py-2 text-gray-500">${r.kind === "mld" ? "MLD-BCB" : "Simple"}</td>
-      <td class="px-5 py-2 text-right">${bs(r.amount)}</td><td class="px-5 py-2">${badge(r.status)}</td>
+      <td class="px-5 py-2 text-right">${bs(r.amount)}</td><td class="px-5 py-2">${badge(r.status)}${simTag(r)}</td>
       <td class="px-5 py-2 font-mono text-xs text-gray-500">${esc(r.reference)}</td></tr>`).join("");
   } catch {}
 }

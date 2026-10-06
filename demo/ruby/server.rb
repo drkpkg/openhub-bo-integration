@@ -11,6 +11,7 @@
 
 require "bigdecimal"
 require "json"
+require "net/http"
 require "openssl"
 require "securerandom"
 require "set"
@@ -53,6 +54,18 @@ end
 def new_reference = ((Time.now.to_f * 1000).to_i % 2_147_483_647).to_s
 
 def decimal_s(value) = value&.to_s("F")
+
+# A paid notification shaped like ATC's (fixtures/openhub/webhook_payment.json).
+# Fictitious payer; only used by the demo's "Simular pago" button.
+def simulated_webhook(record)
+  JSON.generate(
+    detalleRespuesta: "Transacción procesada correctamente", codigoRespuesta: "SUCCESS",
+    numeroReferencia: record[:reference], monto: Float(record[:amount]),
+    fechaHoraTransaccion: Time.now.getlocal("-04:00").strftime("%Y-%m-%dT%H:%M:%S"), moneda: record[:currency],
+    clienteOrigen: { ciCliente: "0000000", nombreCliente: "Cliente de prueba", numeroCuenta: "0000000000" },
+    bancoOrigen: { codigoBanco: "000", nombreBanco: "Banco simulado", numeroOrdenAch: "SIM#{record[:reference]}" }
+  )
+end
 
 def qr_json(qr, webhook_url)
   {
@@ -140,13 +153,20 @@ def generate(req, form)
     PAYMENTS["#{qr.kind}:#{qr.reference}"] = {
       kind: qr.kind, reference: qr.reference, merchantReference: qr.merchant_reference,
       label: (form["label"] || form["description"]).to_s, amount: decimal_s(qr.amount), currency: qr.currency,
-      status: qr.status, expiresAt: result[:expiresAt], createdAt: now, updatedAt: now
+      status: qr.status, expiresAt: result[:expiresAt], webhookUrl: webhook_url, createdAt: now, updatedAt: now
     }
   end
   result
 end
 
 def status_and_track(kind, reference)
+  record = EVENTS_LOCK.synchronize { PAYMENTS["#{kind}:#{reference}"]&.dup }
+  if record&.dig(:simulated) # ATC still reports it pending: keep the simulated result
+    return { kind: kind, reference: reference, status: record[:status], rawStatus: "PAGADO (simulado)",
+             message: nil, amount: record[:amount], payer: record[:payer], payerBank: record[:payerBank],
+             simulated: true }
+  end
+
   result = status_json(QR.get_qr_status(reference, kind: kind))
   track(kind, reference, status: result[:status], payer: result[:payer], payerBank: result[:payerBank])
   result
@@ -158,6 +178,25 @@ def cancel_and_track(reference)
   result
 end
 
+# Sends ATC's paid notification to this service's public webhook URL, through the
+# tunnel, with the QR's secret header: same path as a real payment.
+def simulate(kind, reference)
+  record = EVENTS_LOCK.synchronize { PAYMENTS["#{kind}:#{reference}"]&.dup }
+  raise ArgumentError, "unknown QR in this session" unless record
+  raise ArgumentError, "only pending QRs can be paid (status: #{record[:status]})" unless record[:status].to_s == "pending"
+
+  uri = URI(record[:webhookUrl])
+  response = begin
+    Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https", open_timeout: 10, read_timeout: 20) do |http|
+      http.post(uri.path, simulated_webhook(record),
+                "Content-Type" => "application/json", "x-api-key" => WEBHOOK_SECRET, "X-Demo-Simulated" => "1")
+    end
+  rescue StandardError => e
+    raise ArgumentError, "webhook no entregado: #{e.message}"
+  end
+  { webhookUrl: record[:webhookUrl], webhookStatus: response.code.to_i, **status_and_track(kind, reference) }
+end
+
 def webhook(req, res, kind)
   event = { receivedAt: Time.now.utc.iso8601(3), kind: kind }
   status = 200
@@ -165,8 +204,15 @@ def webhook(req, res, kind)
     headers = req.header.transform_values { |v| v.join(", ") }
     n = OpenhubBo::Qr.parse_webhook(headers, req.body.to_s, webhook: Core::Webhook.new(url: "", value: WEBHOOK_SECRET))
     event.merge!(reference: n.reference, status: n.status, amount: decimal_s(n.amount))
-    event[:confirmedStatus] = QR.get_qr_status(n.reference, kind: kind).status
-    track(kind, n.reference, status: event[:confirmedStatus], viaWebhook: true)
+    payer = { payer: n.payer&.name, payerBank: n.payer_bank&.bank_name }
+    if req["X-Demo-Simulated"] == "1"
+      # ATC knows nothing about a simulated payment: don't ask it to confirm.
+      event.merge!(simulated: true, confirmedStatus: n.status)
+      track(kind, n.reference, status: n.status, viaWebhook: true, simulated: true, **payer)
+    else
+      event[:confirmedStatus] = QR.get_qr_status(n.reference, kind: kind).status
+      track(kind, n.reference, status: event[:confirmedStatus], viaWebhook: true, **payer)
+    end
   rescue Core::WebhookAuthError => e
     status = 401
     event[:error] = "rechazado: #{e.message}"
@@ -211,6 +257,8 @@ server.mount_proc("/") do |req, res|
     call(res) { status_and_track(m[1].to_sym, m[2]) }
   elsif req.request_method == "POST" && (m = %r{\A/api/qr/simple/(\d+)/cancel\z}.match(path))
     call(res) { cancel_and_track(m[1]) }
+  elsif req.request_method == "POST" && (m = %r{\A/api/qr/(simple|mld)/(\d+)/simulate\z}.match(path))
+    call(res) { simulate(m[1].to_sym, m[2]) }
   else
     reply(res, 404, { error: "not found" })
   end

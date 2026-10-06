@@ -16,7 +16,7 @@ import secrets
 import threading
 import time
 from collections import deque
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from http.cookies import SimpleCookie
 from decimal import Decimal, InvalidOperation
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -24,6 +24,7 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs
+from urllib.request import Request, urlopen
 
 from openhub_bo.core import (
     ApiError,
@@ -69,6 +70,21 @@ def track(kind: str, reference: str, **fields: Any) -> None:
         record = PAYMENTS.get(f"{kind}:{reference}")
         if record is not None:
             record.update(fields, updatedAt=datetime.now(timezone.utc).isoformat())
+
+
+def simulated_webhook(record: dict[str, Any]) -> bytes:
+    """A paid notification shaped like ATC's (fixtures/openhub/webhook_payment.json).
+    Fictitious payer; only used by the demo's "Simular pago" button."""
+    bolivia = datetime.now(timezone(timedelta(hours=-4)))
+    return json.dumps({
+        "detalleRespuesta": "Transacción procesada correctamente", "codigoRespuesta": "SUCCESS",
+        "numeroReferencia": record["reference"], "monto": float(record["amount"]),
+        "fechaHoraTransaccion": bolivia.strftime("%Y-%m-%dT%H:%M:%S"), "moneda": record["currency"],
+        "clienteOrigen": {"ciCliente": "0000000", "nombreCliente": "Cliente de prueba",
+                          "numeroCuenta": "0000000000"},
+        "bancoOrigen": {"codigoBanco": "000", "nombreBanco": "Banco simulado",
+                        "numeroOrdenAch": f"SIM{record['reference']}"},
+    }).encode()
 
 
 def qr_json(qr: Any, webhook_url: str) -> dict[str, Any]:
@@ -132,6 +148,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._call(lambda: self._generate(json.loads(body or b"{}")))
         if m := re.fullmatch(r"/api/qr/simple/(\d+)/cancel", path):
             return self._call(lambda: self._cancel(m.group(1)))
+        if m := re.fullmatch(r"/api/qr/(simple|mld)/(\d+)/simulate", path):
+            return self._call(lambda: self._simulate(m.group(1), m.group(2)))
         return self._json(404, {"error": "not found"})
 
     # -- handlers ----------------------------------------------------------------------
@@ -159,11 +177,18 @@ class Handler(BaseHTTPRequestHandler):
                 "merchantReference": qr.merchant_reference,
                 "label": str(form.get("label") or form.get("description") or ""),
                 "amount": str(qr.amount), "currency": qr.currency, "status": qr.status.value,
-                "expiresAt": result["expiresAt"], "createdAt": now, "updatedAt": now,
+                "expiresAt": result["expiresAt"], "webhookUrl": webhook_url,
+                "createdAt": now, "updatedAt": now,
             }
         return result
 
     def _status(self, kind: QrKind, reference: str) -> dict[str, Any]:
+        with LOCK:
+            record = dict(PAYMENTS.get(f"{kind.value}:{reference}") or {})
+        if record.get("simulated"):  # ATC still reports it pending: keep the simulated result
+            return {"kind": kind.value, "reference": reference, "status": record["status"],
+                    "rawStatus": "PAGADO (simulado)", "message": None, "amount": record["amount"],
+                    "payer": record.get("payer"), "payerBank": record.get("payerBank"), "simulated": True}
         result = status_json(QR.get_qr_status(reference, kind=kind))
         track(kind.value, reference, status=result["status"], payer=result["payer"],
               payerBank=result["payerBank"])
@@ -174,6 +199,24 @@ class Handler(BaseHTTPRequestHandler):
         track("simple", reference, status=result["status"])
         return result
 
+    def _simulate(self, kind: str, reference: str) -> dict[str, Any]:
+        """Sends ATC's paid notification to this service's public webhook URL, through
+        the tunnel, with the QR's secret header: same path as a real payment."""
+        with LOCK:
+            record = dict(PAYMENTS.get(f"{kind}:{reference}") or {})
+        if not record:
+            raise ValueError("unknown QR in this session")
+        if record["status"] != "pending":
+            raise ValueError(f"only pending QRs can be paid (status: {record['status']})")
+        request = Request(record["webhookUrl"], data=simulated_webhook(record), method="POST", headers={
+            "Content-Type": "application/json", "x-api-key": WEBHOOK_SECRET, "X-Demo-Simulated": "1",
+            "User-Agent": "openhub-demo-simulator",
+        })
+        with urlopen(request, timeout=20) as response:
+            webhook_status = response.status
+        return {"webhookUrl": record["webhookUrl"], "webhookStatus": webhook_status,
+                **self._status(QrKind(kind), reference)}
+
     def _webhook(self, kind: QrKind, body: bytes) -> None:
         event: dict[str, Any] = {"receivedAt": datetime.now(timezone.utc).isoformat(), "kind": kind.value}
         status = 200
@@ -181,8 +224,15 @@ class Handler(BaseHTTPRequestHandler):
             n = parse_webhook(dict(self.headers.items()), body,
                               webhook=Webhook(url="", value=WEBHOOK_SECRET))
             event.update(reference=n.reference, status=n.status.value, amount=str(n.amount))
-            event["confirmedStatus"] = QR.get_qr_status(n.reference, kind=kind).status.value
-            track(kind.value, n.reference, status=event["confirmedStatus"], viaWebhook=True)
+            payer = {"payer": n.payer.name if n.payer else None,
+                     "payerBank": n.payer_bank.bank_name if n.payer_bank else None}
+            if self.headers.get("X-Demo-Simulated") == "1":
+                # ATC knows nothing about a simulated payment: don't ask it to confirm.
+                event.update(simulated=True, confirmedStatus=n.status.value)
+                track(kind.value, n.reference, status=n.status.value, viaWebhook=True, simulated=True, **payer)
+            else:
+                event["confirmedStatus"] = QR.get_qr_status(n.reference, kind=kind).status.value
+                track(kind.value, n.reference, status=event["confirmedStatus"], viaWebhook=True, **payer)
         except WebhookAuthError as exc:
             status, event["error"] = 401, f"rechazado: {exc}"
         except OpenHubError as exc:
@@ -201,6 +251,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(400, {"error": str(exc), "field": exc.field})
         except ApiError as exc:
             self._json(422, {"error": str(exc), "code": exc.code, "retryable": exc.retryable})
+        except OSError as exc:
+            self._json(422, {"error": f"webhook no entregado: {exc}"})
         except (OpenHubError, ValueError) as exc:
             self._json(422, {"error": f"{type(exc).__name__}: {exc}"})
 

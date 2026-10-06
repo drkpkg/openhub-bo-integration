@@ -55,6 +55,63 @@ const links = () =>
 // OpenHub stores the merchant reference as a 32-bit integer.
 const newReference = () => String(Date.now() % 2_147_483_647);
 
+/** A paid notification shaped like ATC's (fixtures/openhub/webhook_payment.json).
+ * Fictitious payer; only used by the demo's "Simular pago" button. */
+function simulatedWebhook(record: Record<string, unknown>): string {
+  const bolivia = new Date(Date.now() - 4 * 3600_000).toISOString().slice(0, 19);
+  return JSON.stringify({
+    detalleRespuesta: "Transacción procesada correctamente",
+    codigoRespuesta: "SUCCESS",
+    numeroReferencia: record["reference"],
+    monto: Number(record["amount"]),
+    fechaHoraTransaccion: bolivia,
+    moneda: record["currency"],
+    clienteOrigen: { ciCliente: "0000000", nombreCliente: "Cliente de prueba", numeroCuenta: "0000000000" },
+    bancoOrigen: { codigoBanco: "000", nombreBanco: "Banco simulado", numeroOrdenAch: `SIM${record["reference"]}` },
+  });
+}
+
+/** Status as the app sees it: ATC still reports a simulated payment as pending. */
+async function statusAndTrack(kind: QrKind, reference: string) {
+  const record = payments.get(`${kind}:${reference}`);
+  if (record?.["simulated"])
+    return {
+      kind,
+      reference,
+      status: record["status"],
+      rawStatus: "PAGADO (simulado)",
+      message: null,
+      amount: record["amount"],
+      payer: record["payer"] ?? null,
+      payerBank: record["payerBank"] ?? null,
+      simulated: true,
+    };
+  const result = statusJson(await qrClient.getQrStatus(reference, { kind }));
+  track(kind, reference, { status: result.status, payer: result.payer, payerBank: result.payerBank });
+  return result;
+}
+
+/** Sends ATC's paid notification to this service's public webhook URL, through the
+ * tunnel, with the QR's secret header: same path as a real payment. */
+async function simulate(kind: QrKind, reference: string) {
+  const record = payments.get(`${kind}:${reference}`);
+  if (!record) throw new Error("unknown QR in this session");
+  if (record["status"] !== "pending") throw new Error(`only pending QRs can be paid (status: ${record["status"]})`);
+  const webhookUrl = String(record["webhookUrl"]);
+  let response: Response;
+  try {
+    response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": WEBHOOK_SECRET, "X-Demo-Simulated": "1" },
+      body: simulatedWebhook(record),
+      signal: AbortSignal.timeout(20_000),
+    });
+  } catch (err) {
+    throw new Error(`webhook no entregado: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  return { webhookUrl, webhookStatus: response.status, ...(await statusAndTrack(kind, reference)) };
+}
+
 const qrJson = (qr: GeneratedQr, webhookUrl: string) => ({
   kind: qr.kind,
   reference: qr.reference,
@@ -158,6 +215,7 @@ async function generate(req: IncomingMessage, form: Record<string, string>) {
     currency: qr.currency,
     status: qr.status,
     expiresAt: qr.expiresAt,
+    webhookUrl,
     createdAt: now,
     updatedAt: now,
   });
@@ -173,8 +231,15 @@ async function webhook(req: IncomingMessage, res: ServerResponse, kind: QrKind, 
     );
     const n = parseWebhook(headers, body, new Webhook({ url: "", value: WEBHOOK_SECRET }));
     Object.assign(event, { reference: n.reference, status: n.status, amount: n.amount });
-    event["confirmedStatus"] = (await qrClient.getQrStatus(n.reference, { kind })).status;
-    track(kind, n.reference, { status: event["confirmedStatus"], viaWebhook: true });
+    const payer = { payer: n.payer?.name ?? null, payerBank: n.payerBank?.bankName ?? null };
+    if (req.headers["x-demo-simulated"] === "1") {
+      // ATC knows nothing about a simulated payment: don't ask it to confirm.
+      Object.assign(event, { simulated: true, confirmedStatus: n.status });
+      track(kind, n.reference, { status: n.status, viaWebhook: true, simulated: true, ...payer });
+    } else {
+      event["confirmedStatus"] = (await qrClient.getQrStatus(n.reference, { kind })).status;
+      track(kind, n.reference, { status: event["confirmedStatus"], viaWebhook: true, ...payer });
+    }
   } catch (err) {
     if (err instanceof WebhookAuthError) {
       status = 401;
@@ -207,6 +272,8 @@ const server = createServer(async (req, res) => {
           track("simple", cancel[1]!, { status: result.status });
           return result;
         });
+      const sim = /^\/api\/qr\/(simple|mld)\/(\d+)\/simulate$/.exec(path);
+      if (sim) return await call(res, () => simulate(sim[1] as QrKind, sim[2]!));
       return json(res, 404, { error: "not found" });
     }
     if (path === "/login") return send(res, 200, LOGIN, "text/html; charset=utf-8");
@@ -230,11 +297,7 @@ const server = createServer(async (req, res) => {
       );
     const status = /^\/api\/qr\/(simple|mld)\/(\d+)$/.exec(path);
     if (status)
-      return await call(res, async () => {
-        const result = statusJson(await qrClient.getQrStatus(status[2]!, { kind: status[1] as QrKind }));
-        track(status[1]!, status[2]!, { status: result.status, payer: result.payer, payerBank: result.payerBank });
-        return result;
-      });
+      return await call(res, () => statusAndTrack(status[1] as QrKind, status[2]!));
     json(res, 404, { error: "not found" });
   } catch (err) {
     console.error(err);

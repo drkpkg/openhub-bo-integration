@@ -89,6 +89,11 @@ const badge = (s) => { const [label, cls] = STATUS[s] || [s, "bg-gray-100 text-g
 const btn = "rounded-lg px-3 py-2 text-sm font-semibold";
 const btnSecondary = `${btn} bg-white text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50`;
 const btnPrimary = `${btn} bg-emerald-600 text-white hover:bg-emerald-700`;
+const simTag = (r) => r.simulated ? ` <span class="text-xs text-gray-400">simulado</span>` : "";
+const sandboxBox = `<div class="mt-5 rounded-lg border border-dashed border-gray-300 p-3 text-left">
+    <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Sandbox</p>
+    <p class="mt-1 text-xs text-gray-500">En el sandbox nadie paga el QR. Esto envía al webhook la notificación de pago con el formato de ATC (pagador ficticio).</p>
+    <button id="simulate" class="mt-2 w-full ${btnSecondary}">Simular pago</button></div>`;
 
 async function api(path, options = {}) {
   const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
@@ -148,14 +153,15 @@ function countdown(expiresAt) {
   tick(); timer = setInterval(tick, 1000);
 }
 
-function renderCheckout(status, message) {
+function renderCheckout(status, message, st = {}) {
   const c = $("checkout"); c.hidden = false; $("cartCard").hidden = true;
   if (status === "paid") {
     clearInterval(poll); clearInterval(timer);
     c.innerHTML = `<div class="rounded-lg bg-emerald-50 p-4 text-left">
         <p class="font-semibold text-emerald-800">Pedido confirmado</p>
         <p class="mt-1 text-sm text-emerald-700">${esc(active.label)} · ${bs(active.amount)}</p>
-        <p class="mt-1 text-xs text-emerald-700">Ref. ATC ${esc(active.reference)} · confirmado por OpenHub</p></div>
+        ${st.payer ? `<p class="mt-1 text-sm text-emerald-700">Pagó ${esc(st.payer)}${st.payerBank ? ` · ${esc(st.payerBank)}` : ""}</p>` : ""}
+        <p class="mt-1 text-xs text-emerald-700">Ref. ATC ${esc(active.reference)} · ${st.simulated ? "pago simulado, recibido por webhook" : "confirmado por OpenHub"}</p></div>
       <button id="newOrder" class="mt-4 w-full ${btnPrimary}">Seguir comprando</button>`;
     return;
   }
@@ -174,13 +180,14 @@ function renderCheckout(status, message) {
               : `<button id="check" class="${btnSecondary}">Ya pagué, verificar</button>
                  ${active.kind === "simple" ? `<button id="cancel" class="${btnSecondary}">Cancelar pedido</button>` : ""}`}
     </div>
-    <p id="coErr" class="mt-2 text-sm text-red-600"></p>`;
+    <p id="coErr" class="mt-2 text-sm text-red-600"></p>
+    ${final ? "" : sandboxBox}`;
   if (!final) countdown(active.expiresAt);
 }
 
 async function refresh() {
   if (!active) return;
-  try { const st = await api(`/api/qr/${active.kind}/${active.reference}`); renderCheckout(st.status, st.message); loadOrders(); }
+  try { const st = await api(`/api/qr/${active.kind}/${active.reference}`); renderCheckout(st.status, st.message, st); loadOrders(); }
   catch (e) { const el = $("coErr"); if (el) el.textContent = e.message; }
 }
 
@@ -189,6 +196,11 @@ $("checkout").addEventListener("click", async (ev) => {
   if (ev.target.id === "cancel") {
     try { const st = await api(`/api/qr/simple/${active.reference}/cancel`, { method: "POST" }); renderCheckout(st.status, st.message); loadOrders(); }
     catch (e) { $("coErr").textContent = e.message; }
+  }
+  if (ev.target.id === "simulate") {
+    ev.target.disabled = true; ev.target.textContent = "Enviando webhook…";
+    try { const st = await api(`/api/qr/${active.kind}/${active.reference}/simulate`, { method: "POST" }); renderCheckout(st.status, st.message, st); loadOrders(); }
+    catch (e) { $("coErr").textContent = e.message; ev.target.disabled = false; ev.target.textContent = "Simular pago"; }
   }
   if (ev.target.id === "newOrder") { active = null; cart.clear(); $("checkout").hidden = true; $("cartCard").hidden = false; renderCart(); }
 });
@@ -216,7 +228,7 @@ async function loadOrders() {
     $("orders").innerHTML = rows.map((r) => `<tr>
       <td class="px-4 py-2">${esc(r.label)}</td>
       <td class="px-4 py-2 text-gray-500">${r.kind === "mld" ? "QR MLD-BCB" : "QR Simple"}</td>
-      <td class="px-4 py-2">${bs(r.amount)}</td><td class="px-4 py-2">${badge(r.status)}</td>
+      <td class="px-4 py-2">${bs(r.amount)}</td><td class="px-4 py-2">${badge(r.status)}${simTag(r)}</td>
       <td class="px-4 py-2 font-mono text-xs text-gray-500">${esc(r.reference)}</td></tr>`).join("");
   } catch {}
 }
