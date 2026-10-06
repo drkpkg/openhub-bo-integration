@@ -98,6 +98,8 @@ def test_unknown_reference_raises_api_error(mock):
         ({"amount": "0"}, "amount"),
         ({"reference": "../etc"}, "reference"),
         ({"reference": "ord-42"}, "reference"),
+        ({"reference": "2147483648"}, "reference"),
+        ({"establishment_name": "Demo openhub-bo"}, "establishment_name"),
         ({"description": "  "}, "description"),
         ({"expires_in": 0}, "expires_in"),
     ],

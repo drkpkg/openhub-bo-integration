@@ -88,6 +88,8 @@ describe("QrClient", () => {
       [{ reference: "ord-42" }, "reference"],
       [{ description: " " }, "description"],
       [{ expiresIn: 0 }, "expires_in"],
+      [{ establishmentName: "Demo openhub-bo" }, "establishment_name"],
+      [{ reference: "2147483648" }, "reference"],
     ] as const) {
       await assert.rejects(client.generateQr({ ...args, ...override }), (e: unknown) => e instanceof ValidationError && e.field === field);
     }

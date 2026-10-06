@@ -67,7 +67,9 @@ class TestQr < Minitest::Test
 
   def test_validation_happens_before_network
     { { amount: "10.505" } => "amount", { reference: "ord-42" } => "reference",
-      { description: " " } => "description", { expires_in: 0 } => "expires_in" }.each do |override, field|
+      { description: " " } => "description", { expires_in: 0 } => "expires_in",
+      { establishment_name: "Demo openhub-bo" } => "establishment_name",
+      { reference: "2147483648" } => "reference" }.each do |override, field|
       error = assert_raises(Core::ValidationError) { @client.generate_qr(**args(**override)) }
       assert_equal field, error.field
     end
