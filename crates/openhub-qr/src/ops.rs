@@ -97,6 +97,18 @@ impl Operation for Cancel {
 fn generate_body(input: &GenerateQr) -> Result<serde_json::Value> {
     require_text("description", &input.description)?;
     require_text("establishment_name", &input.establishment_name)?;
+    // Verified in sandbox: any punctuation (- . , _ & ' /) fails with 400
+    // INVALID_FORMAT; letters (incl. accents and ñ), digits and spaces pass.
+    if !input
+        .establishment_name
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == ' ')
+    {
+        return Err(Error::validation(
+            "establishment_name",
+            "only letters, digits and spaces are allowed",
+        ));
+    }
     numeric_reference("reference", &input.reference)?;
     // Verified in sandbox: references above i32::MAX fail with 500
     // QR_GENERATION_ERROR (Simple and MLD); leading zeros are kept.
@@ -220,6 +232,15 @@ mod tests {
     }
 
     #[test]
+    fn establishment_name_accepts_accents_and_digits() {
+        let input = GenerateQr {
+            establishment_name: "Tienda Ñandú 2".into(),
+            ..sample_input()
+        };
+        assert!(build(&input).is_ok());
+    }
+
+    #[test]
     fn mld_uses_its_own_path() {
         let request = build(&GenerateQr {
             kind: QrKind::Mld,
@@ -282,6 +303,20 @@ mod tests {
                     ..sample_input()
                 },
                 "webhook",
+            ),
+            (
+                GenerateQr {
+                    establishment_name: "Demo openhub-bo".into(),
+                    ..sample_input()
+                },
+                "establishment_name",
+            ),
+            (
+                GenerateQr {
+                    establishment_name: "Tienda, SRL".into(),
+                    ..sample_input()
+                },
+                "establishment_name",
             ),
         ];
         for (input, field) in cases {

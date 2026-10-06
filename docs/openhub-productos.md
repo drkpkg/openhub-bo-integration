@@ -41,6 +41,10 @@ páginas "Documentación".
   pero el ejemplo es otro (`codigoRespuesta: SUCCESS, monto, fechaHoraTransaccion, clienteOrigen.ciCliente, …`).
   El parser acepta ambos formatos. ATC recomienda validar que `numeroReferencia` e importe coincidan.
 - `fechaExpiracion` viene sin zona horaria.
+- **Verificado en sandbox:** `numeroReferencia` (del comercio) debe ser ≤ 2.147.483.647
+  (entero de 32 bits; mayor → `500 QR_GENERATION_ERROR`) y `nombreEstablecimiento` solo
+  admite letras (con tildes/ñ), números y espacios (cualquier signo → `400 INVALID_FORMAT`).
+  La glosa acepta cualquier carácter. Aplica también a MLD-BCB.
 
 ## 2. Cobro por QR MLD-BCB (`/qr/mld/v2`), implementado
 
