@@ -11,5 +11,10 @@ require_relative "core/models"
 require_relative "core/native_bridge"
 require_relative "core/op"
 require_relative "core/transport"
-require "openhub_bo/core/native.so"
+begin
+  # Precompiled gems ship one binary per Ruby minor version.
+  require "openhub_bo/core/#{RUBY_VERSION[/\d+\.\d+/]}/openhub_bo_core"
+rescue LoadError
+  require "openhub_bo/core/openhub_bo_core"
+end
 require_relative "core/session"

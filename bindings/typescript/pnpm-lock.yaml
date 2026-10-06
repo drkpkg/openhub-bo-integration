@@ -33,7 +33,7 @@ importers:
   packages/accounts:
     dependencies:
       '@openhub-bo/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
 
   packages/core: {}
@@ -41,19 +41,19 @@ importers:
   packages/fx:
     dependencies:
       '@openhub-bo/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
 
   packages/payouts:
     dependencies:
       '@openhub-bo/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
 
   packages/qr:
     dependencies:
       '@openhub-bo/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
 
 packages:

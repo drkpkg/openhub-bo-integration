@@ -4,6 +4,8 @@ description = "QR and ACH batch payouts for the Red Enlace (ATC) OpenHub APIs"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 openhub-core = { path = "../openhub-core" }

@@ -2,13 +2,50 @@
   "name": "@openhub-bo/accounts",
   "version": "0.1.0",
   "description": "Cuentas de comercio, saldos y movimientos de Red Enlace (ATC) OpenHub, Bolivia",
+  "license": "Apache-2.0",
+  "author": "Felix Daniel Coca Calvimontes",
+  "homepage": "https://github.com/drkpkg/openhub-bo-integration#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drkpkg/openhub-bo-integration.git",
+    "directory": "bindings/typescript/packages/accounts"
+  },
+  "bugs": {
+    "url": "https://github.com/drkpkg/openhub-bo-integration/issues"
+  },
   "type": "module",
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
-  "files": ["dist", "wasm", "README.md"],
-  "keywords": ["bolivia", "saldos", "conciliación", "openhub", "red enlace", "atc"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "wasm",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "keywords": [
+    "bolivia",
+    "saldos",
+    "conciliación",
+    "openhub",
+    "red enlace",
+    "atc"
+  ],
   "sideEffects": false,
-  "dependencies": { "@openhub-bo/core": "workspace:*" }
+  "dependencies": {
+    "@openhub-bo/core": "workspace:^"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
 }

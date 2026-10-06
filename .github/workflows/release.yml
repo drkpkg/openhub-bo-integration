@@ -1,0 +1,340 @@
+# Builds every openhub-bo distribution and publishes it.
+#
+#   push tag vX.Y.Z      build + publish to PyPI, npm and RubyGems, then a GitHub release
+#   workflow_dispatch    build only ("dry-run"), or build + publish Python to TestPyPI
+#   pull_request         build only, when packaging files change
+#
+# Publishing uses trusted publishing (OIDC): no long-lived tokens in the repo.
+# Each registry must trust this workflow (repo drkpkg/openhub-bo-integration,
+# file release.yml, environment pypi / testpypi / npm / rubygems); see
+# docs/publicacion.md. The first npm release may use an NPM_TOKEN secret instead.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "dry-run: build only · testpypi: build and publish Python to TestPyPI"
+        type: choice
+        options: [dry-run, testpypi]
+        default: dry-run
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - scripts/release.py
+      - "**/Cargo.toml"
+      - "**/pyproject.toml"
+      - "**/package.json"
+      - "**/*.gemspec"
+      - "**/Rakefile"
+      - bindings/ruby/support/**
+
+permissions:
+  contents: read
+
+env:
+  # Ruby minor versions with precompiled binaries (other versions use the source gem).
+  RUBY_VERSIONS: "3.2,3.3,3.4,4.0"
+
+jobs:
+  check:
+    name: Versions and license files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/release.py check ${{ startsWith(github.ref, 'refs/tags/v') && format('--tag {0}', github.ref_name) || '' }}
+
+  # ---------------------------------------------------------------- Python
+  python-wheels:
+    name: Python wheels (${{ matrix.name }})
+    needs: check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-x86_64, os: ubuntu-latest, target: x86_64, manylinux: auto, smoke: true }
+          - { name: linux-aarch64, os: ubuntu-latest, target: aarch64, manylinux: auto }
+          - { name: musllinux-x86_64, os: ubuntu-latest, target: x86_64, manylinux: musllinux_1_2 }
+          - { name: musllinux-aarch64, os: ubuntu-latest, target: aarch64, manylinux: musllinux_1_2 }
+          - { name: macos-x86_64, os: macos-latest, target: x86_64 }
+          - { name: macos-arm64, os: macos-latest, target: aarch64, smoke: true }
+          - { name: windows-x64, os: windows-latest, target: x64, smoke: true }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # One wheel per package and platform; abi3 covers Python >= 3.10.
+      - uses: PyO3/maturin-action@v1
+        with: { working-directory: bindings/python/core, target: "${{ matrix.target }}", manylinux: "${{ matrix.manylinux }}", args: --release --out ../dist }
+      - uses: PyO3/maturin-action@v1
+        with: { working-directory: bindings/python/qr, target: "${{ matrix.target }}", manylinux: "${{ matrix.manylinux }}", args: --release --out ../dist }
+      - uses: PyO3/maturin-action@v1
+        with: { working-directory: bindings/python/fx, target: "${{ matrix.target }}", manylinux: "${{ matrix.manylinux }}", args: --release --out ../dist }
+      - uses: PyO3/maturin-action@v1
+        with: { working-directory: bindings/python/accounts, target: "${{ matrix.target }}", manylinux: "${{ matrix.manylinux }}", args: --release --out ../dist }
+      - uses: PyO3/maturin-action@v1
+        with: { working-directory: bindings/python/payouts, target: "${{ matrix.target }}", manylinux: "${{ matrix.manylinux }}", args: --release --out ../dist }
+      - name: Smoke test (install the wheels, no Rust involved)
+        if: matrix.smoke
+        shell: bash
+        run: |
+          python -m pip install -q --only-binary :all: --find-links bindings/python/dist \
+            openhub-bo-qr openhub-bo-fx openhub-bo-accounts openhub-bo-payouts
+          cd "$RUNNER_TEMP"  # import the installed wheels, not the sources
+          python -c "import json, openhub_bo.qr, openhub_bo.fx, openhub_bo.accounts, openhub_bo.payouts, openhub_bo.qr._native as n; print(json.loads(n.call('version', '{}')))"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-wheels-${{ matrix.name }}
+          path: bindings/python/dist/*.whl
+          if-no-files-found: error
+
+  python-sdist:
+    name: Python sdists and metapackage
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: |
+          for pkg in core qr fx accounts payouts; do
+            (cd "bindings/python/$pkg" && uvx --from 'maturin>=1.9,<2' maturin sdist --out ../dist)
+          done
+          uv build bindings/python/meta --out-dir bindings/python/dist
+          uvx twine check --strict bindings/python/dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-sdist
+          path: bindings/python/dist/*
+          if-no-files-found: error
+
+  publish-pypi:
+    name: Publish to PyPI / TestPyPI
+    needs: [python-wheels, python-sdist]
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.target == 'testpypi'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.target == 'testpypi' && 'testpypi' || 'pypi' }}
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: python-*
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          repository-url: ${{ github.event.inputs.target == 'testpypi' && 'https://test.pypi.org/legacy/' || 'https://upload.pypi.org/legacy/' }}
+          skip-existing: true
+
+  # ---------------------------------------------------------------- npm
+  npm-build:
+    name: npm packages
+    needs: check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bindings/typescript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@0.2.129
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:wasm
+      - run: pnpm run build
+      - run: pnpm test
+      # `pnpm pack` turns workspace:^ into real version ranges.
+      - run: |
+          mkdir -p dist
+          for pkg in core qr fx accounts payouts; do
+            (cd "packages/$pkg" && pnpm pack --pack-destination ../../dist)
+          done
+      - name: Smoke test on Node 18 (oldest supported)
+        run: |
+          docker run --rm -v "$PWD/dist:/pkgs:ro" node:18-slim bash -c '
+            mkdir /app && cd /app && npm init -y >/dev/null &&
+            npm install --silent /pkgs/*.tgz &&
+            node --input-type=module -e "
+              import { Session } from \"@openhub-bo/core\";
+              import { QrClient } from \"@openhub-bo/qr\";
+              await import(\"@openhub-bo/fx\"); await import(\"@openhub-bo/accounts\"); await import(\"@openhub-bo/payouts\");
+              new QrClient(new Session({ clientId: \"x\", clientSecret: \"y\", environment: \"sandbox\" }));
+              console.log(\"ok\", process.version);"'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm
+          path: bindings/typescript/dist/*.tgz
+          if-no-files-found: error
+
+  publish-npm:
+    name: Publish to npm
+    needs: npm-build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      id-token: write # trusted publishing and provenance
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm
+          path: dist
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@latest # trusted publishing needs npm >= 11.5.1
+      # Dependency order: core first. Already published versions are skipped, so
+      # a failed release can be re-run.
+      - env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          for pkg in core qr fx accounts payouts; do
+            file=$(ls dist/openhub-bo-$pkg-*.tgz)
+            version=$(tar -xOzf "$file" package/package.json | node -p 'JSON.parse(require("fs").readFileSync(0)).version')
+            if npm view "@openhub-bo/$pkg@$version" version >/dev/null 2>&1; then
+              echo "@openhub-bo/$pkg@$version already published"; continue
+            fi
+            npm publish "$file" --access public --provenance
+          done
+
+  # ---------------------------------------------------------------- RubyGems
+  ruby-native:
+    name: Ruby gems (${{ matrix.platform }})
+    needs: check
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x86_64-linux, x86_64-linux-musl, aarch64-linux, aarch64-linux-musl, x86_64-darwin, arm64-darwin, x64-mingw-ucrt]
+    defaults:
+      run:
+        working-directory: bindings/ruby
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+      - run: gem install --no-document rb_sys rake-compiler minitest
+      # Copies the repo crates into each gem: the build container only sees bindings/ruby.
+      - run: rake vendor
+      # rb-sys-dock cross-compiles one binary per Ruby version into a fat platform gem.
+      - run: |
+          for gem in openhub-bo-core openhub-bo-qr openhub-bo-fx openhub-bo-accounts openhub-bo-payouts; do
+            rb-sys-dock --platform "${{ matrix.platform }}" --ruby-versions "$RUBY_VERSIONS" -d "$PWD/$gem" --build
+          done
+          mkdir -p dist && cp openhub-bo-*/pkg/*-${{ matrix.platform }}.gem dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ruby-gems-${{ matrix.platform }}
+          path: bindings/ruby/dist/*.gem
+          if-no-files-found: error
+
+  ruby-source:
+    name: Ruby source gems and metagem
+    needs: check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bindings/ruby
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+      - run: gem install --no-document rb_sys rake-compiler minitest
+      - run: rake gem build_meta
+      - run: mkdir -p dist && cp openhub-bo*/pkg/*.gem dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ruby-gems-source
+          path: bindings/ruby/dist/*.gem
+          if-no-files-found: error
+
+  ruby-smoke:
+    name: Ruby precompiled gems on Ruby ${{ matrix.ruby }}
+    needs: [ruby-native, ruby-source]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.2", "4.0"]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ruby-gems-*
+          path: gems
+          merge-multiple: true
+      # The official Ruby image has no Rust: the gems must load precompiled.
+      - run: |
+          docker run --rm -v "$PWD/gems:/gems:ro" ruby:${{ matrix.ruby }}-slim bash -c '
+            cd /gems &&
+            for pkg in core qr fx accounts payouts; do gem install --no-document --local openhub-bo-$pkg-*-x86_64-linux.gem || exit 1; done &&
+            gem install --no-document --local openhub-bo-0*.gem &&
+            ruby -e "
+              %w[core qr fx accounts payouts].each { |p| require \"openhub_bo/#{p}\" }
+              so = \$LOADED_FEATURES.grep(/openhub_bo_qr\\.so/).first
+              abort \"not precompiled: #{so}\" unless so.include?(\"-x86_64-linux/\")
+              puts \"ok #{RUBY_VERSION} #{so}\""'
+
+  publish-rubygems:
+    name: Publish to RubyGems
+    needs: ruby-smoke
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: rubygems
+    permissions:
+      id-token: write # trusted publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ruby-gems-*
+          path: gems
+          merge-multiple: true
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+      - uses: rubygems/configure-rubygems-credentials@v1.0.0
+      # Already published files are skipped, so a failed release can be re-run.
+      - run: |
+          for file in gems/*.gem; do
+            out=$(gem push "$file" 2>&1) && echo "$out" && continue
+            echo "$out" | grep -q "Repushing of gem versions is not allowed" && { echo "$(basename "$file") already published"; continue; }
+            echo "$out"; exit 1
+          done
+
+  # ---------------------------------------------------------------- GitHub release
+  github-release:
+    name: GitHub release
+    needs: [publish-pypi, publish-npm, publish-rubygems]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          # Release notes: the CHANGELOG section of this version.
+          awk -v v="$version" '$0 ~ "^## \\[?"v"\\]?" {on=1; next} /^## / && on {exit} on' CHANGELOG.md > notes.md
+          gh release create "$GITHUB_REF_NAME" --title "openhub-bo $version" --notes-file notes.md artifacts/*

@@ -19,4 +19,7 @@ members = [
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
-# TODO: choose a license before publishing (MIT / Apache-2.0 / proprietary).
+license = "Apache-2.0"
+repository = "https://github.com/drkpkg/openhub-bo-integration"
+homepage = "https://github.com/drkpkg/openhub-bo-integration"
+authors = ["Felix Daniel Coca Calvimontes"]

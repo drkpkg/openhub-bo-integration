@@ -1,0 +1,5 @@
+# Cargo workspace of the gem's native extension (layout expected by rb_sys).
+# The repo crates it uses are vendored by `rake vendor` (see ../support/native_gem.rb).
+[workspace]
+resolver = "3"
+members = ["ext/openhub_bo_accounts"]
