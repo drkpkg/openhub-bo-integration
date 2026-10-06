@@ -1,0 +1,12 @@
+{
+  "name": "openhub-bo-demo-typescript",
+  "private": true,
+  "type": "module",
+  "description": "OpenHub QR demo service using @openhub-bo/qr",
+  "scripts": { "start": "node server.ts" },
+  "engines": { "node": ">=22.6" },
+  "dependencies": {
+    "@openhub-bo/core": "link:../../bindings/typescript/packages/core",
+    "@openhub-bo/qr": "link:../../bindings/typescript/packages/qr"
+  }
+}
