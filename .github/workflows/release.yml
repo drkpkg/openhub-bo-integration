@@ -236,7 +236,7 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run build:wasm -- ${{ matrix.pkg }}
+      - run: pnpm run build:wasm ${{ matrix.pkg }}
       - run: pnpm exec tsc -b packages/${{ matrix.pkg }}
       - run: node --test packages/${{ matrix.pkg }}/test/*.test.ts
       # `pnpm pack` turns workspace:^ into real version ranges.
