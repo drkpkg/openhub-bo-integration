@@ -112,7 +112,7 @@ jobs:
           if-no-files-found: error
 
   publish-pypi:
-    name: Publish to ${{ github.event.inputs.target == 'testpypi' && 'TestPyPI' || 'PyPI' }}
+    name: Publish to PyPI / TestPyPI
     needs: [python-wheels, python-sdist]
     if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.target == 'testpypi'
     runs-on: ubuntu-latest
@@ -282,7 +282,9 @@ jobs:
       # The official Ruby image has no Rust: the gems must load precompiled.
       - run: |
           docker run --rm -v "$PWD/gems:/gems:ro" ruby:${{ matrix.ruby }}-slim bash -c '
-            cd /gems && gem install --no-document --local openhub-bo-0*.gem &&
+            cd /gems &&
+            for pkg in core qr fx accounts payouts; do gem install --no-document --local openhub-bo-$pkg-*-x86_64-linux.gem || exit 1; done &&
+            gem install --no-document --local openhub-bo-0*.gem &&
             ruby -e "
               %w[core qr fx accounts payouts].each { |p| require \"openhub_bo/#{p}\" }
               so = \$LOADED_FEATURES.grep(/openhub_bo_qr\\.so/).first
