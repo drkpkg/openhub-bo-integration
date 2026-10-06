@@ -1,15 +1,15 @@
 //! Native module `OpenhubBo::Accounts::Native` of the openhub-bo-accounts gem. All logic
 //! lives in the Rust crates; Ruby talks to them through one JSON entry point
-//! (see `openhub_core::ffi`).
+//! (see `openhub_bo_core::ffi`).
 
 use magnus::{Error, Ruby, function, prelude::*};
 
 fn call(op: String, payload: String) -> String {
-    openhub_core::ffi::call(&openhub_accounts::AccountsOps, &op, &payload)
+    openhub_bo_core::ffi::call(&openhub_bo_accounts::AccountsOps, &op, &payload)
 }
 
 fn protocol_version() -> u32 {
-    openhub_core::ffi::PROTOCOL_VERSION
+    openhub_bo_core::ffi::PROTOCOL_VERSION
 }
 
 fn version() -> &'static str {

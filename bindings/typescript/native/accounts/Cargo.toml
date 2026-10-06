@@ -13,6 +13,6 @@ name = "openhub_bo_accounts_wasm"
 crate-type = ["cdylib"]
 
 [dependencies]
-openhub-core = { path = "../../../../crates/openhub-core" }
-openhub-accounts = { path = "../../../../crates/openhub-accounts" }
+openhub-bo-core = { path = "../../../../crates/openhub-bo-core" }
+openhub-bo-accounts = { path = "../../../../crates/openhub-bo-accounts" }
 wasm-bindgen = "0.2"

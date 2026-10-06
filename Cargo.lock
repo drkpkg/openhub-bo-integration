@@ -159,10 +159,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
-name = "openhub-accounts"
+name = "openhub-bo-accounts"
 version = "0.1.0"
 dependencies = [
- "openhub-core",
+ "openhub-bo-core",
  "pretty_assertions",
  "rust_decimal",
  "serde",
@@ -173,48 +173,13 @@ dependencies = [
 name = "openhub-bo-accounts-py"
 version = "0.1.0"
 dependencies = [
- "openhub-accounts",
- "openhub-core",
+ "openhub-bo-accounts",
+ "openhub-bo-core",
  "pyo3",
 ]
 
 [[package]]
-name = "openhub-bo-core-py"
-version = "0.1.0"
-dependencies = [
- "openhub-core",
- "pyo3",
-]
-
-[[package]]
-name = "openhub-bo-fx-py"
-version = "0.1.0"
-dependencies = [
- "openhub-core",
- "openhub-fx",
- "pyo3",
-]
-
-[[package]]
-name = "openhub-bo-payouts-py"
-version = "0.1.0"
-dependencies = [
- "openhub-core",
- "openhub-payouts",
- "pyo3",
-]
-
-[[package]]
-name = "openhub-bo-qr-py"
-version = "0.1.0"
-dependencies = [
- "openhub-core",
- "openhub-qr",
- "pyo3",
-]
-
-[[package]]
-name = "openhub-core"
+name = "openhub-bo-core"
 version = "0.1.0"
 dependencies = [
  "base64",
@@ -227,10 +192,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "openhub-fx"
+name = "openhub-bo-core-py"
 version = "0.1.0"
 dependencies = [
- "openhub-core",
+ "openhub-bo-core",
+ "pyo3",
+]
+
+[[package]]
+name = "openhub-bo-fx"
+version = "0.1.0"
+dependencies = [
+ "openhub-bo-core",
  "pretty_assertions",
  "rust_decimal",
  "serde",
@@ -238,10 +211,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "openhub-payouts"
+name = "openhub-bo-fx-py"
 version = "0.1.0"
 dependencies = [
- "openhub-core",
+ "openhub-bo-core",
+ "openhub-bo-fx",
+ "pyo3",
+]
+
+[[package]]
+name = "openhub-bo-payouts"
+version = "0.1.0"
+dependencies = [
+ "openhub-bo-core",
  "pretty_assertions",
  "rust_decimal",
  "serde",
@@ -249,14 +231,32 @@ dependencies = [
 ]
 
 [[package]]
-name = "openhub-qr"
+name = "openhub-bo-payouts-py"
 version = "0.1.0"
 dependencies = [
- "openhub-core",
+ "openhub-bo-core",
+ "openhub-bo-payouts",
+ "pyo3",
+]
+
+[[package]]
+name = "openhub-bo-qr"
+version = "0.1.0"
+dependencies = [
+ "openhub-bo-core",
  "pretty_assertions",
  "rust_decimal",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "openhub-bo-qr-py"
+version = "0.1.0"
+dependencies = [
+ "openhub-bo-core",
+ "openhub-bo-qr",
+ "pyo3",
 ]
 
 [[package]]

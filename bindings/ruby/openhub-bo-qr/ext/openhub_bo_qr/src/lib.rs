@@ -1,15 +1,15 @@
 //! Native module `OpenhubBo::Qr::Native` of the openhub-bo-qr gem. All logic
 //! lives in the Rust crates; Ruby talks to them through one JSON entry point
-//! (see `openhub_core::ffi`).
+//! (see `openhub_bo_core::ffi`).
 
 use magnus::{Error, Ruby, function, prelude::*};
 
 fn call(op: String, payload: String) -> String {
-    openhub_core::ffi::call(&openhub_qr::QrOps, &op, &payload)
+    openhub_bo_core::ffi::call(&openhub_bo_qr::QrOps, &op, &payload)
 }
 
 fn protocol_version() -> u32 {
-    openhub_core::ffi::PROTOCOL_VERSION
+    openhub_bo_core::ffi::PROTOCOL_VERSION
 }
 
 fn version() -> &'static str {

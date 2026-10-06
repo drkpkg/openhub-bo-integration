@@ -83,6 +83,7 @@ module NativeGemTasks
                    .gsub(/^(version|edition|rust-version|license|repository)\.workspace = true$/) do
                      "#{Regexp.last_match(1)} = \"#{workspace_field(Regexp.last_match(1))}\""
                    end
+                   .gsub(/^(homepage|authors|readme|keywords|categories)\b.*\n/, "") # crates.io metadata only
                    .sub(/\n\[dev-dependencies\].*\z/m, "\n")
     File.write(File.join(dest, "Cargo.toml"), manifest)
   end

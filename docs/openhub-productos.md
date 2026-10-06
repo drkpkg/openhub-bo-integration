@@ -198,6 +198,6 @@ check-in/out, `doRefundTransaction`, `sendTransactionAnnulment`, `sendSettlement
 1. **Corregido:** enviar `access_token` (además de `Authorization: Bearer`) en las llamadas de negocio.
 2. **Corregido:** agregar `cancel_qr` para QR Simple. Para MLD no existe.
 3. **Corregido:** el parser de webhook acepta los dos formatos de QR Simple/MLD.
-4. **Hecho:** PIX, Koibanx y Binance en `openhub-fx` / `openhub-bo-fx`.
-5. **Hecho:** `cuentas-comercios` en `openhub-accounts` / `openhub-bo-accounts`.
-6. **Hecho:** pagos (síncronos y por lotes) en `openhub-payouts` / `openhub-bo-payouts`.
+4. **Hecho:** PIX, Koibanx y Binance en `openhub-bo-fx` / `openhub-bo-fx`.
+5. **Hecho:** `cuentas-comercios` en `openhub-bo-accounts` / `openhub-bo-accounts`.
+6. **Hecho:** pagos (síncronos y por lotes) en `openhub-bo-payouts` / `openhub-bo-payouts`.

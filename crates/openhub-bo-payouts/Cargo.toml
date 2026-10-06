@@ -1,0 +1,22 @@
+[package]
+name = "openhub-bo-payouts"
+description = "QR and ACH batch payouts for the Red Enlace (ATC) OpenHub APIs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+readme = "../../README.md"
+keywords = ["openhub", "bolivia", "payments", "qr", "sans-io"]
+categories = ["api-bindings", "finance"]
+
+[dependencies]
+openhub-bo-core = { version = "0.1.0", path = "../openhub-bo-core" }
+rust_decimal = "1.43.0"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151", features = ["arbitrary_precision"] }
+
+[dev-dependencies]
+pretty_assertions = "1.4.1"

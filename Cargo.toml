@@ -3,11 +3,11 @@ resolver = "3"
 # TypeScript (WASM) and Ruby bindings are separate Cargo workspaces.
 exclude = ["bindings/typescript", "bindings/ruby"]
 members = [
-    "crates/openhub-core",
-    "crates/openhub-qr",
-    "crates/openhub-fx",
-    "crates/openhub-accounts",
-    "crates/openhub-payouts",
+    "crates/openhub-bo-core",
+    "crates/openhub-bo-qr",
+    "crates/openhub-bo-fx",
+    "crates/openhub-bo-accounts",
+    "crates/openhub-bo-payouts",
     "bindings/python/core",
     "bindings/python/qr",
     "bindings/python/fx",
