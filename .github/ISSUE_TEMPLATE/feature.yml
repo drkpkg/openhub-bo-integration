@@ -1,0 +1,15 @@
+name: Propuesta
+description: Una operación, producto o mejora nueva
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: Qué necesitas y para qué
+    validations:
+      required: true
+  - type: textarea
+    id: openhub
+    attributes:
+      label: Referencia en la doc de OpenHub
+      description: Producto y endpoint, si es una operación de la API.
