@@ -4,6 +4,8 @@ description = "PIX, virtual-asset (Koibanx) and Binance QR collections for the R
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 openhub-core = { path = "../openhub-core" }

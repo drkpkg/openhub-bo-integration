@@ -3,6 +3,17 @@
 Librerías para cobrar por QR en Bolivia a través de **Red Enlace (ATC) OpenHub**,
 con un único núcleo en Rust y bindings por lenguaje.
 
+> Integración **no oficial**: este proyecto no está afiliado ni respaldado por Red Enlace (ATC).
+> Necesitas tus propias credenciales de OpenHub.
+
+```sh
+pip install "openhub-bo[qr]"          # Python ≥ 3.10
+npm install @openhub-bo/qr            # Node ≥ 18 (solo servidor)
+gem install openhub-bo-qr             # Ruby ≥ 3.2
+```
+
+(Aún sin publicar: ver [docs/publicacion.md](docs/publicacion.md).)
+
 | Paquete | Estado |
 |---|---|
 | `openhub-core` + `openhub-qr` + `openhub-fx` + `openhub-accounts` + `openhub-payouts` (Rust) | 🟡 v0.1 |
@@ -11,7 +22,7 @@ con un único núcleo en Rust y bindings por lenguaje.
 | ↳ `openhub-bo-fx` | PIX, USDT/USDC (Koibanx), Binance Pay. Validaciones y errores verificados en sandbox; **caso exitoso pendiente** (el comercio no tiene habilitados estos productos) |
 | ↳ `openhub-bo-accounts` | Cuentas, saldos y movimientos (conciliación). Validaciones y errores verificados en sandbox; **caso exitoso pendiente** (falta un NIT con cuentas) |
 | ↳ `openhub-bo-payouts` | Pagar QR de terceros y lotes ACH. Lectura de QR y bancos **verificados en sandbox**; pagar y autorizar lotes siguen la doc (no ejecutados) |
-| TypeScript (npm) | ⚪ planificado (WASM) |
+| TypeScript (npm) | 🟡 v0.1, `@openhub-bo/{core,qr,fx,accounts,payouts}` (WASM); QR verificado en sandbox |
 | Ruby (RubyGems) | 🟡 v0.1, gemas `openhub-bo-{core,qr,fx,accounts,payouts}` (magnus); QR verificado en sandbox |
 
 Productos de OpenHub cubiertos: **8 de 8**: QR Simple, QR MLD-BCB, QR PIX, QR activos
@@ -81,10 +92,11 @@ Requiere el target `wasm32-unknown-unknown` y `wasm-bindgen-cli` 0.2.129.
 
 Gemas nativas (magnus + rb_sys), una por producto, con el mismo núcleo Rust:
 `openhub-bo-core`, `-qr`, `-fx`, `-accounts`, `-payouts` y la metagema `openhub-bo`.
-Requiere Ruby ≥ 3.2 y Rust para compilar al instalar.
+Requiere Ruby ≥ 3.2. Se publican gemas precompiladas para Linux, macOS y Windows; en otras
+plataformas la gema compila al instalar (requiere Rust).
 
 ```sh
-gem install --user-install rb_sys rake minitest bigdecimal   # una vez
+gem install --user-install rb_sys rake-compiler rake minitest bigdecimal   # una vez
 cd bindings/ruby && rake compile test                         # vendoriza crates, compila y prueba
 ruby -Iopenhub-bo-core/lib -Iopenhub-bo-qr/lib examples/sandbox_smoke.rb   # sandbox real
 ```
@@ -97,5 +109,11 @@ ruby -Iopenhub-bo-core/lib -Iopenhub-bo-qr/lib examples/sandbox_smoke.rb   # san
 - [ ] Verificar cuentas con el NIT real del comercio (`OPENHUB_NIT`).
 - [ ] Probar un pago QR y un lote ACH reales en sandbox (con cuenta de origen habilitada) y coordinar el webhook de lotes con ATC.
 - [ ] Certificación con ATC para credenciales de producción.
-- [ ] Elegir licencia.
-- [ ] Workflow de release de wheels (maturin-action) y publicación en PyPI.
+- [x] Elegir licencia (Apache-2.0).
+- [x] Workflow de publicación en PyPI, npm y RubyGems ([docs/publicacion.md](docs/publicacion.md)).
+- [ ] Configurar *trusted publishing* en los tres registros y publicar la 0.1.0.
+
+## Licencia
+
+[Apache-2.0](LICENSE). "Red Enlace", "ATC" y "OpenHub" son marcas de sus respectivos titulares
+(ver [NOTICE](NOTICE)). Para contribuir, ver [CONTRIBUTING.md](CONTRIBUTING.md).

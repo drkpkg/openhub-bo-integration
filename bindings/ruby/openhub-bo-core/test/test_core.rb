@@ -14,7 +14,7 @@ class TestCore < Minitest::Test
 
   def test_native_catalog_and_version
     assert_equal({ "idempotent" => true, "kind" => "operation", "name" => "token" }, NATIVE.operations["token"])
-    assert_equal "0.1.0", NATIVE.version
+    assert_equal OpenhubBo::Core::VERSION, NATIVE.version
   end
 
   def test_protocol_mismatch_is_a_load_error

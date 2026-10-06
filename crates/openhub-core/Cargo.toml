@@ -4,6 +4,8 @@ description = "Sans-IO core for the Red Enlace (ATC) OpenHub payment APIs in Bol
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 base64 = "0.23.1"

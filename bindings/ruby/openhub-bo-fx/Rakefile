@@ -2,11 +2,9 @@
 
 require_relative "../support/native_gem"
 
-GEMSPEC = Gem::Specification.load(File.expand_path("openhub-bo-fx.gemspec", __dir__))
-
 NativeGemTasks.define(
   gem_dir: __dir__,
   pkg: "fx",
   crates: ["openhub-core", "openhub-fx"],
-  gemspec: GEMSPEC
+  gemspec_path: File.expand_path("openhub-bo-fx.gemspec", __dir__)
 )

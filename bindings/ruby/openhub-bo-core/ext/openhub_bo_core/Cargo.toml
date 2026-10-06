@@ -1,17 +1,16 @@
 [package]
-name = "openhub-bo-core-rb"
+name = "openhub_bo_core"
 version = "0.1.0"
 edition = "2024"
+license = "Apache-2.0"
 publish = false
 description = "Native extension of the openhub-bo-core Ruby gem"
 
 [lib]
-name = "native"
+name = "openhub_bo_core"
 crate-type = ["cdylib"]
 
 [dependencies]
 magnus = "0.9"
 openhub-core = { path = "vendor/openhub-core" }
 
-# Standalone: the crates are vendored by `rake vendor` (see support/native_gem.rb).
-[workspace]

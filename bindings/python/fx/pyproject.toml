@@ -6,6 +6,9 @@ build-backend = "maturin"
 name = "openhub-bo-fx"
 description = "Cobros QR con PIX (Brasil), activos virtuales (USDT/USDC vía Koibanx) y Binance Pay vía Red Enlace (ATC) OpenHub, Bolivia"
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Felix Daniel Coca Calvimontes" }]
 requires-python = ">=3.10"
 # Lockstep versioning: every openhub-bo package is released with the same version.
 dependencies = ["openhub-bo-core>=0.1.0,<0.2.0"]
@@ -17,6 +20,11 @@ classifiers = [
     "Topic :: Office/Business :: Financial",
     "Typing :: Typed",
 ]
+
+[project.urls]
+Homepage = "https://github.com/drkpkg/openhub-bo-integration"
+Source = "https://github.com/drkpkg/openhub-bo-integration"
+Issues = "https://github.com/drkpkg/openhub-bo-integration/issues"
 
 [tool.maturin]
 python-source = "python"

@@ -16,7 +16,7 @@ fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
-#[magnus::init(name = "native")]
+#[magnus::init(name = "openhub_bo_accounts")]
 fn init(ruby: &Ruby) -> Result<(), Error> {
     let module = ruby
         .define_module("OpenhubBo")?

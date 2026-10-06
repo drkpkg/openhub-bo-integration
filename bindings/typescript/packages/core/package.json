@@ -2,15 +2,50 @@
   "name": "@openhub-bo/core",
   "version": "0.1.0",
   "description": "Base compartida (sesión, transporte, errores) de los clientes openhub-bo para Red Enlace (ATC) OpenHub, Bolivia",
+  "license": "Apache-2.0",
+  "author": "Felix Daniel Coca Calvimontes",
+  "homepage": "https://github.com/drkpkg/openhub-bo-integration#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drkpkg/openhub-bo-integration.git",
+    "directory": "bindings/typescript/packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/drkpkg/openhub-bo-integration/issues"
+  },
   "type": "module",
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-    "./testing": { "types": "./dist/testing.d.ts", "default": "./dist/testing.js" }
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "default": "./dist/testing.js"
+    }
   },
-  "files": ["dist", "wasm", "README.md"],
-  "keywords": ["bolivia", "payments", "openhub", "red enlace", "atc"],
-  "sideEffects": false
+  "files": [
+    "dist",
+    "wasm",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "keywords": [
+    "bolivia",
+    "payments",
+    "openhub",
+    "red enlace",
+    "atc"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
 }

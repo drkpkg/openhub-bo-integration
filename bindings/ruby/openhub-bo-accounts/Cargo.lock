@@ -276,12 +276,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
-name = "openhub-bo-qr-rb"
+name = "openhub-accounts"
 version = "0.1.0"
 dependencies = [
- "magnus",
  "openhub-core",
- "openhub-qr",
+ "rust_decimal",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -297,13 +298,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "openhub-qr"
+name = "openhub_bo_accounts"
 version = "0.1.0"
 dependencies = [
+ "magnus",
+ "openhub-accounts",
  "openhub-core",
- "rust_decimal",
- "serde",
- "serde_json",
 ]
 
 [[package]]

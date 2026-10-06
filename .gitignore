@@ -20,3 +20,9 @@ bindings/typescript/**/wasm/
 captures/
 demo/.run/
 .claude/
+
+# release artifacts
+bindings/python/dist/
+bindings/typescript/dist/
+bindings/ruby/dist/
+bindings/ruby/**/Gemfile.lock

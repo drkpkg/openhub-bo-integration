@@ -4,6 +4,8 @@ description = "Merchant accounts, balances and movements for the Red Enlace (ATC
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 openhub-core = { path = "../openhub-core" }

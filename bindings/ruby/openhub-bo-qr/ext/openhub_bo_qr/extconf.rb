@@ -3,4 +3,4 @@
 require "mkmf"
 require "rb_sys/mkmf"
 
-create_rust_makefile("openhub_bo/qr/native")
+create_rust_makefile("openhub_bo/qr/openhub_bo_qr")
