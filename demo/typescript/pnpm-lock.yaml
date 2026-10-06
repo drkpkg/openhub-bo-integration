@@ -1,0 +1,16 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      '@openhub-bo/core':
+        specifier: link:../../bindings/typescript/packages/core
+        version: link:../../bindings/typescript/packages/core
+      '@openhub-bo/qr':
+        specifier: link:../../bindings/typescript/packages/qr
+        version: link:../../bindings/typescript/packages/qr

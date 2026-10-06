@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Servicios Illimani · Pagos</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900 antialiased">
+<header class="bg-white border-b border-gray-200">
+  <div class="mx-auto max-w-5xl px-4 py-4 flex flex-wrap items-center gap-3">
+    <div class="h-9 w-9 rounded-lg bg-sky-600 text-white grid place-items-center font-semibold">I</div>
+    <div>
+      <h1 class="text-lg font-semibold leading-tight">Servicios Illimani</h1>
+      <p class="text-sm text-gray-500">Portal de pagos de facturas · agua, internet y mantenimiento</p>
+    </div>
+    <span id="powered" class="ml-auto inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">Ruby</span>
+  </div>
+</header>
+
+<main class="mx-auto max-w-5xl px-4 py-8 space-y-6">
+  <section class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+    <form id="lookup" class="flex flex-wrap items-end gap-3">
+      <div class="grow">
+        <label for="customer" class="block text-sm font-medium text-gray-700">Código de cliente</label>
+        <input id="customer" value="CLI-1042" required
+               class="mt-1 block w-full rounded-lg border-0 px-3 py-2 text-sm uppercase ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-sky-600">
+      </div>
+      <button class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-700">Consultar facturas</button>
+    </form>
+    <p class="mt-2 text-xs text-gray-500">Clientes de prueba: CLI-1042, CLI-2077.</p>
+  </section>
+
+  <section id="account" hidden class="rounded-xl border border-gray-200 bg-white shadow-sm">
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-5 py-3">
+      <div><h2 id="customerName" class="text-base font-semibold"></h2><p id="customerAddr" class="text-sm text-gray-500"></p></div>
+      <p class="text-sm text-gray-500">Deuda pendiente <span id="debt" class="font-semibold text-gray-900"></span></p>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-gray-50 text-left text-gray-500">
+          <tr><th class="px-5 py-2 font-medium">Factura</th><th class="px-5 py-2 font-medium">Servicio</th>
+              <th class="px-5 py-2 font-medium">Periodo</th><th class="px-5 py-2 font-medium text-right">Monto</th>
+              <th class="px-5 py-2 font-medium">Estado</th><th class="px-5 py-2"></th></tr>
+        </thead>
+        <tbody id="invoices" class="divide-y divide-gray-100"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="payment" hidden class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"></section>
+
+  <section class="rounded-xl border border-gray-200 bg-white shadow-sm">
+    <h2 class="border-b border-gray-200 px-5 py-3 text-base font-semibold">Registro de pagos</h2>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-gray-50 text-left text-gray-500">
+          <tr><th class="px-5 py-2 font-medium">Fecha</th><th class="px-5 py-2 font-medium">Concepto</th>
+              <th class="px-5 py-2 font-medium">QR</th><th class="px-5 py-2 font-medium text-right">Monto</th>
+              <th class="px-5 py-2 font-medium">Estado</th><th class="px-5 py-2 font-medium">Ref. ATC</th></tr>
+        </thead>
+        <tbody id="ledger" class="divide-y divide-gray-100">
+          <tr><td colspan="6" class="px-5 py-6 text-center text-gray-500">Sin pagos registrados.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<footer id="footer" class="mx-auto max-w-5xl px-4 pb-10 text-xs text-gray-500"></footer>
+
+<script>
+const CUSTOMERS = {
+  "CLI-1042": { name: "María Quispe (cliente de prueba)", address: "Zona Sopocachi, La Paz", invoices: [
+    { id: "F-0931", service: "Agua potable", period: "Septiembre 2026", amount: 4.2 },
+    { id: "F-0932", service: "Internet hogar", period: "Septiembre 2026", amount: 6.8 },
+    { id: "F-0933", service: "Mantenimiento edificio", period: "Octubre 2026", amount: 2.0 } ] },
+  "CLI-2077": { name: "Juan Mamani (cliente de prueba)", address: "Zona Central, El Alto", invoices: [
+    { id: "F-1408", service: "Agua potable", period: "Septiembre 2026", amount: 3.5 },
+    { id: "F-1409", service: "Recolección de residuos", period: "Septiembre 2026", amount: 1.2 } ] },
+};
+const STATUS = {
+  pending: ["Pago en curso", "bg-amber-50 text-amber-700 ring-amber-600/20"],
+  paid: ["Pagada", "bg-emerald-50 text-emerald-700 ring-emerald-600/20"],
+  cancelled: ["Cancelado", "bg-gray-100 text-gray-600 ring-gray-500/20"],
+  expired: ["Expirado", "bg-gray-100 text-gray-600 ring-gray-500/20"],
+  error: ["Error", "bg-red-50 text-red-700 ring-red-600/20"],
+  due: ["Por pagar", "bg-sky-50 text-sky-700 ring-sky-600/20"],
+};
+let customer = null, payments = [], active = null, poll = null, timer = null;
+const $ = (id) => document.getElementById(id);
+const bs = (n) => "Bs " + Number(n).toLocaleString("es-BO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const esc = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const badge = (s) => { const [label, cls] = STATUS[s] || [s, "bg-gray-100 text-gray-600 ring-gray-500/20"];
+  return `<span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${cls}">${esc(label)}</span>`; };
+const btnSecondary = "rounded-lg bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50";
+const simTag = (r) => r.simulated ? ` <span class="text-xs text-gray-400">simulado</span>` : "";
+const sandboxBox = `<div class="rounded-lg border border-dashed border-gray-300 p-3">
+    <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Sandbox</p>
+    <p class="mt-1 text-xs text-gray-500">En el sandbox nadie paga el QR. Esto envía al webhook la notificación de pago con el formato de ATC (pagador ficticio).</p>
+    <button id="simulate" class="mt-2 ${btnSecondary}">Simular pago</button></div>`;
+const btnPrimary = "rounded-lg bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-40";
+
+async function api(path, options = {}) {
+  const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
+  if (res.status === 401) { location.href = "/login"; throw new Error("Sesión expirada"); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`${data.error || res.statusText}${data.code ? ` (${data.code})` : ""}`);
+  return data;
+}
+
+/** An invoice is paid/in progress when the latest QR created for it says so. */
+function invoiceStatus(inv) {
+  const last = payments.find((p) => p.label === `Factura ${inv.id}`);
+  return last && (last.status === "paid" || last.status === "pending") ? last.status : "due";
+}
+
+function renderAccount() {
+  if (!customer) return;
+  const c = CUSTOMERS[customer];
+  $("account").hidden = false;
+  $("customerName").textContent = c.name;
+  $("customerAddr").textContent = `${customer} · ${c.address}`;
+  $("debt").textContent = bs(c.invoices.filter((i) => invoiceStatus(i) !== "paid").reduce((t, i) => t + i.amount, 0));
+  $("invoices").innerHTML = c.invoices.map((inv) => {
+    const st = invoiceStatus(inv);
+    return `<tr>
+      <td class="px-5 py-2 font-mono text-xs">${esc(inv.id)}</td><td class="px-5 py-2">${esc(inv.service)}</td>
+      <td class="px-5 py-2 text-gray-500">${esc(inv.period)}</td><td class="px-5 py-2 text-right">${bs(inv.amount)}</td>
+      <td class="px-5 py-2">${badge(st)}</td>
+      <td class="px-5 py-2 text-right">${st === "due" ? `<button data-pay="${inv.id}" class="${btnPrimary}" ${active ? "disabled" : ""}>Pagar con QR</button>` : ""}</td></tr>`;
+  }).join("");
+}
+
+$("lookup").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const code = $("customer").value.trim().toUpperCase();
+  customer = CUSTOMERS[code] ? code : null;
+  if (!customer) { $("account").hidden = false; $("customerName").textContent = "Cliente no encontrado";
+    $("customerAddr").textContent = code; $("debt").textContent = "—"; $("invoices").innerHTML = ""; return; }
+  renderAccount();
+});
+
+function countdown(expiresAt) {
+  clearInterval(timer);
+  const tick = () => {
+    const left = Math.max(0, Math.round((new Date(expiresAt) - Date.now()) / 1000));
+    const el = $("left"); if (el) el.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+  };
+  tick(); timer = setInterval(tick, 1000);
+}
+
+function renderPayment(status, st = {}) {
+  const box = $("payment"); box.hidden = false;
+  const inv = active.invoice;
+  if (status === "paid") {
+    clearInterval(poll); clearInterval(timer);
+    box.innerHTML = `
+      <h2 class="text-base font-semibold">Comprobante de pago</h2>
+      <dl class="mt-4 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+        <dt class="text-gray-500">Factura</dt><dd>${esc(inv.id)} · ${esc(inv.service)} · ${esc(inv.period)}</dd>
+        <dt class="text-gray-500">Monto</dt><dd class="font-semibold">${bs(active.amount)}</dd>
+        <dt class="text-gray-500">Ref. ATC</dt><dd class="font-mono">${esc(active.reference)}</dd>
+        ${st.payer ? `<dt class="text-gray-500">Pagado por</dt><dd>${esc(st.payer)}</dd>` : ""}
+        ${st.payerBank ? `<dt class="text-gray-500">Banco</dt><dd>${esc(st.payerBank)}</dd>` : ""}
+        <dt class="text-gray-500">Estado</dt><dd>${badge("paid")}</dd>
+        <dt class="text-gray-500">Origen</dt><dd>${st.simulated ? "Pago simulado, recibido por webhook" : "Confirmado por OpenHub"}</dd>
+      </dl>
+      <button id="close" class="mt-5 ${btnSecondary}">Volver a mis facturas</button>`;
+    return;
+  }
+  const final = status !== "pending";
+  if (final) { clearInterval(poll); clearInterval(timer); }
+  box.innerHTML = `
+    <div class="grid gap-6 sm:grid-cols-[auto_1fr] items-center">
+      <img alt="QR de pago" src="${active.qrDataUri}"
+           class="mx-auto h-56 w-56 rounded-lg border border-gray-200 bg-white [image-rendering:pixelated] ${final ? "opacity-25" : ""}">
+      <div class="space-y-3">
+        <h2 class="text-base font-semibold">Pagar factura ${esc(inv.id)}</h2>
+        <p class="text-sm text-gray-500">${esc(inv.service)} · ${esc(inv.period)}</p>
+        <p class="text-3xl font-semibold tracking-tight">${bs(active.amount)}</p>
+        <div class="flex flex-wrap items-center gap-2">${badge(status)}
+          ${final ? "" : `<span class="text-sm text-gray-500">vence en <span id="left" class="font-medium text-gray-700">…</span></span>`}</div>
+        <p class="text-sm text-gray-500">Escanea el QR desde la app de tu banco. ${active.kind === "mld" ? "QR MLD-BCB" : "QR Simple"} · Ref. ATC <span class="font-mono">${esc(active.reference)}</span></p>
+        <div class="flex flex-wrap gap-2">
+          ${final ? `<button id="close" class="${btnSecondary}">Volver a mis facturas</button>`
+                  : `<button id="check" class="${btnSecondary}">Ya pagué, verificar</button>
+                     ${active.kind === "simple" ? `<button id="cancel" class="${btnSecondary}">Cancelar</button>` : ""}`}
+        </div>
+        <p id="payErr" class="text-sm text-red-600"></p>
+        ${final ? "" : sandboxBox}
+      </div>
+    </div>`;
+  if (!final) countdown(active.expiresAt);
+}
+
+async function refresh() {
+  if (!active) return;
+  try { const st = await api(`/api/qr/${active.kind}/${active.reference}`); renderPayment(st.status, st); await loadLedger(); }
+  catch (e) { const el = $("payErr"); if (el) el.textContent = e.message; }
+}
+
+$("invoices").addEventListener("click", async (ev) => {
+  const b = ev.target.closest("[data-pay]"); if (!b) return;
+  const inv = CUSTOMERS[customer].invoices.find((i) => i.id === b.dataset.pay);
+  b.disabled = true;
+  try {
+    active = await api("/api/qr", { method: "POST", body: JSON.stringify({
+      kind: "simple", amount: inv.amount.toFixed(2), description: `Servicios Illimani factura ${inv.id}`,
+      label: `Factura ${inv.id}`, expiresIn: 900 }) });
+    active.invoice = inv;
+    renderPayment(active.status);
+    clearInterval(poll); poll = setInterval(refresh, 5000);
+    await loadLedger();
+    $("payment").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) { b.disabled = false; alertBox(e.message); }
+});
+
+function alertBox(message) {
+  $("payment").hidden = false;
+  $("payment").innerHTML = `<p class="text-sm text-red-600">${esc(message)}</p>`;
+}
+
+$("payment").addEventListener("click", async (ev) => {
+  if (ev.target.id === "check") refresh();
+  if (ev.target.id === "cancel") {
+    try { const st = await api(`/api/qr/simple/${active.reference}/cancel`, { method: "POST" }); renderPayment(st.status, st); await loadLedger(); }
+    catch (e) { $("payErr").textContent = e.message; }
+  }
+  if (ev.target.id === "simulate") {
+    ev.target.disabled = true; ev.target.textContent = "Enviando webhook…";
+    try { const st = await api(`/api/qr/${active.kind}/${active.reference}/simulate`, { method: "POST" }); renderPayment(st.status, st); await loadLedger(); }
+    catch (e) { $("payErr").textContent = e.message; ev.target.disabled = false; ev.target.textContent = "Simular pago"; }
+  }
+  if (ev.target.id === "close") { active = null; $("payment").hidden = true; renderAccount(); }
+});
+
+async function loadLedger() {
+  try {
+    payments = await api("/api/payments");
+    renderAccount();
+    if (!payments.length) return;
+    $("ledger").innerHTML = payments.map((r) => `<tr>
+      <td class="px-5 py-2 text-gray-500">${new Date(r.createdAt).toLocaleString("es-BO", { dateStyle: "short", timeStyle: "short" })}</td>
+      <td class="px-5 py-2">${esc(r.label)}</td><td class="px-5 py-2 text-gray-500">${r.kind === "mld" ? "MLD-BCB" : "Simple"}</td>
+      <td class="px-5 py-2 text-right">${bs(r.amount)}</td><td class="px-5 py-2">${badge(r.status)}${simTag(r)}</td>
+      <td class="px-5 py-2 font-mono text-xs text-gray-500">${esc(r.reference)}</td></tr>`).join("");
+  } catch {}
+}
+
+(async () => {
+  const info = await api("/api/info");
+  $("powered").textContent = `${info.language} · ${info.library} ${info.version}`;
+  $("footer").innerHTML = `Integración real con el sandbox de Red Enlace (ATC) usando <code class="font-mono">${esc(info.library)}</code> (${esc(info.language)}).
+    Otras demos: ${(info.links || []).filter((l) => l.language !== info.language)
+      .map((l) => `<a class="text-sky-700 hover:underline" href="${esc(l.url)}">${esc(l.language)}</a>`).join(" · ")}`;
+  customer = "CLI-1042"; renderAccount();
+  await loadLedger(); setInterval(loadLedger, 8000);
+})();
+</script>
+</body>
+</html>
