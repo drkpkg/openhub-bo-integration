@@ -9,11 +9,12 @@ con un único núcleo en Rust y bindings por lenguaje.
 ```sh
 cargo add openhub-bo-qr               # Rust ≥ 1.85 (sans-IO: tú haces el HTTP)
 pip install "openhub-bo[qr]"          # Python ≥ 3.10
-npm install @openhub-bo/qr            # Node ≥ 18 (solo servidor)
+npm install @openhub-bo/qr            # Node ≥ 18, solo servidor (aún no publicado en npm)
 gem install openhub-bo-qr             # Ruby ≥ 3.2
 ```
 
-(Aún sin publicar: ver [docs/publicacion.md](docs/publicacion.md).)
+Publicado en [crates.io](https://crates.io/crates/openhub-bo-qr), [PyPI](https://pypi.org/project/openhub-bo/)
+y [RubyGems](https://rubygems.org/gems/openhub-bo-qr); npm llegará en una próxima versión.
 
 | Paquete | Estado |
 |---|---|
@@ -46,12 +47,11 @@ bindings/python/          workspace uv con tres distribuciones (namespace `openh
   payouts/  -> openhub-bo-payouts   PayoutsClient, MockPayouts                (_native = PayoutsOps)
   meta/  -> openhub-bo        metapaquete con extras [qr], [all]
 fixtures/openhub/         payloads de la doc y del sandbox, compartidos por todos los tests
-docs/                     arquitectura e investigación de proveedores
+docs/                     arquitectura, productos de OpenHub y publicación
 ```
 
 Ver [docs/arquitectura.md](docs/arquitectura.md) para el diseño y cómo agregar
-un lenguaje u operación, y [docs/investigacion-proveedores.md](docs/investigacion-proveedores.md)
-para el panorama de APIs de cobro en Bolivia.
+un lenguaje u operación.
 
 ## Desarrollo
 
@@ -102,7 +102,7 @@ cd bindings/ruby && rake compile test                         # vendoriza crates
 ruby -Iopenhub-bo-core/lib -Iopenhub-bo-qr/lib examples/sandbox_smoke.rb   # sandbox real
 ```
 
-## Pendiente antes de publicar
+## Pendiente
 
 - [x] Registrarse en OpenHub y contrastar contratos contra la doc autenticada y el sandbox.
 - [ ] Capturar un webhook real (pagar un QR de sandbox con un endpoint público).
@@ -111,8 +111,8 @@ ruby -Iopenhub-bo-core/lib -Iopenhub-bo-qr/lib examples/sandbox_smoke.rb   # san
 - [ ] Probar un pago QR y un lote ACH reales en sandbox (con cuenta de origen habilitada) y coordinar el webhook de lotes con ATC.
 - [ ] Certificación con ATC para credenciales de producción.
 - [x] Elegir licencia (Apache-2.0).
-- [x] Workflow de publicación en PyPI, npm y RubyGems ([docs/publicacion.md](docs/publicacion.md)).
-- [ ] Configurar *trusted publishing* en los tres registros y publicar la 0.1.0.
+- [x] Publicar la 0.1.0 en crates.io, PyPI y RubyGems ([docs/publicacion.md](docs/publicacion.md)).
+- [ ] Publicar en npm (`@openhub-bo/*`).
 
 ## Licencia
 

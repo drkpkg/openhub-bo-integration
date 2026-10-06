@@ -4,7 +4,7 @@ Todos los paquetes (`openhub-bo*` en crates.io, PyPI y RubyGems, `@openhub-bo/*`
 juntos y con la misma versión. Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/);
 versiones según [SemVer](https://semver.org/lang/es/) (en 0.x, un cambio de minor puede romper la API).
 
-## [0.1.0] - sin publicar
+## [0.1.0] - 2026-10-06
 
 Primera versión. Integración no oficial con las APIs de Red Enlace (ATC) OpenHub, Bolivia.
 

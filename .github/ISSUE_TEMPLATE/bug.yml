@@ -1,0 +1,40 @@
+name: Error
+description: Algo no funciona como dice la documentación
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        No pegues credenciales, tokens, NIT reales ni datos de clientes. Si es un problema de
+        seguridad, repórtalo en privado (ver SECURITY.md).
+  - type: dropdown
+    id: language
+    attributes:
+      label: Lenguaje
+      options: [Rust, Python, TypeScript, Ruby]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versión del paquete
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Ambiente de OpenHub
+      options: [sandbox, desarrollo, producción, mock / sin red]
+  - type: textarea
+    id: what
+    attributes:
+      label: Qué pasó y qué esperabas
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Cómo reproducirlo
+      description: Código mínimo y, si aplica, la respuesta de OpenHub (sin datos sensibles).
+      render: text
