@@ -276,7 +276,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
-name = "openhub-core"
+name = "openhub-bo-core"
 version = "0.1.0"
 dependencies = [
  "base64",
@@ -288,10 +288,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "openhub-payouts"
+name = "openhub-bo-payouts"
 version = "0.1.0"
 dependencies = [
- "openhub-core",
+ "openhub-bo-core",
  "rust_decimal",
  "serde",
  "serde_json",
@@ -302,8 +302,8 @@ name = "openhub_bo_payouts"
 version = "0.1.0"
 dependencies = [
  "magnus",
- "openhub-core",
- "openhub-payouts",
+ "openhub-bo-core",
+ "openhub-bo-payouts",
 ]
 
 [[package]]

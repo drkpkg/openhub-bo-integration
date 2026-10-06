@@ -13,6 +13,6 @@ name = "openhub_bo_accounts_native"
 crate-type = ["cdylib"]
 
 [dependencies]
-openhub-core = { path = "../../../crates/openhub-core" }
+openhub-bo-core = { path = "../../../crates/openhub-bo-core" }
 pyo3 = { version = "0.29.3", features = ["abi3-py310"] }
-openhub-accounts = { path = "../../../crates/openhub-accounts" }
+openhub-bo-accounts = { path = "../../../crates/openhub-bo-accounts" }

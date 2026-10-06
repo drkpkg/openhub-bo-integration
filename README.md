@@ -7,6 +7,7 @@ con un único núcleo en Rust y bindings por lenguaje.
 > Necesitas tus propias credenciales de OpenHub.
 
 ```sh
+cargo add openhub-bo-qr               # Rust ≥ 1.85 (sans-IO: tú haces el HTTP)
 pip install "openhub-bo[qr]"          # Python ≥ 3.10
 npm install @openhub-bo/qr            # Node ≥ 18 (solo servidor)
 gem install openhub-bo-qr             # Ruby ≥ 3.2
@@ -16,7 +17,7 @@ gem install openhub-bo-qr             # Ruby ≥ 3.2
 
 | Paquete | Estado |
 |---|---|
-| `openhub-core` + `openhub-qr` + `openhub-fx` + `openhub-accounts` + `openhub-payouts` (Rust) | 🟡 v0.1 |
+| `openhub-bo-core` + `openhub-bo-qr` + `openhub-bo-fx` + `openhub-bo-accounts` + `openhub-bo-payouts` (Rust, crates.io) | 🟡 v0.1 |
 | `openhub-bo` (Python, PyPI) | 🟡 v0.1, metapaquete con extras: `pip install openhub-bo[qr]`, `[fx]`, `[accounts]`, `[payouts]`, `[all]` |
 | ↳ `openhub-bo-qr` | QR Simple + MLD-BCB. Generar / consultar / cancelar **verificados en sandbox** |
 | ↳ `openhub-bo-fx` | PIX, USDT/USDC (Koibanx), Binance Pay. Validaciones y errores verificados en sandbox; **caso exitoso pendiente** (el comercio no tiene habilitados estos productos) |
@@ -32,11 +33,11 @@ virtuales, QR Binance, cuenta digital, dispersión de fondos síncrona y asíncr
 ## Estructura
 
 ```
-crates/openhub-core/      núcleo sans-IO: Operation/Registry, sobres, estados, token, errores
-crates/openhub-qr/        familia QR Simple + MLD-BCB (operaciones, modelos, webhook)
-crates/openhub-fx/        familia PIX + Koibanx + Binance (conversión de moneda)
-crates/openhub-accounts/  cuentas de comercio, saldos y movimientos
-crates/openhub-payouts/   pagar QR de terceros y lotes de transferencias ACH
+crates/openhub-bo-core/      núcleo sans-IO: Operation/Registry, sobres, estados, token, errores
+crates/openhub-bo-qr/        familia QR Simple + MLD-BCB (operaciones, modelos, webhook)
+crates/openhub-bo-fx/        familia PIX + Koibanx + Binance (conversión de moneda)
+crates/openhub-bo-accounts/  cuentas de comercio, saldos y movimientos
+crates/openhub-bo-payouts/   pagar QR de terceros y lotes de transferencias ACH
 bindings/python/          workspace uv con tres distribuciones (namespace `openhub_bo`)
   core/  -> openhub-bo-core   Session, Transport, errores, MockGateway   (_native = CoreOps)
   qr/    -> openhub-bo-qr     QrClient, AsyncQrClient, MockOpenHub       (_native = QrOps)

@@ -5,14 +5,14 @@
 ```
  Rust (sin I/O)                                    Python (namespace openhub_bo)
  ┌──────────────────────────────┐                 ┌────────────────────────────────────┐
- │ openhub-core                 │  CoreOps ──────▶│ openhub-bo-core   openhub_bo.core   │
+ │ openhub-bo-core                 │  CoreOps ──────▶│ openhub-bo-core   openhub_bo.core   │
  │  Operation / Handler         │                 │  Session · AsyncSession · Transport │
  │  registry! · Chain           │                 │  Op · errores · MockGateway         │
  │  sobres · estados · token    │                 └───────────────▲────────────────────┘
  └──────────────▲───────────────┘                                 │ Session compartida
                 │                                 ┌───────────────┴────────────────────┐
  ┌──────────────┴───────────────┐  QrOps ────────▶│ openhub-bo-qr     openhub_bo.qr     │
- │ openhub-qr                   │                 │  QrClient · AsyncQrClient           │
+ │ openhub-bo-qr                   │                 │  QrClient · AsyncQrClient           │
  │  Generate · Verify · Cancel  │                 │  parse_webhook · MockOpenHub        │
  │  ParseWebhook                │                 └────────────────────────────────────┘
  └──────────────────────────────┘                 openhub-bo = metapaquete [qr] [all]
@@ -87,7 +87,7 @@ Operaciones actuales:
 
 ## Agregar un producto (ej. pagos)
 
-`openhub-fx` / `openhub-bo-fx` es el ejemplo completo a seguir.
+`openhub-bo-fx` / `openhub-bo-fx` es el ejemplo completo a seguir.
 
 1. `crates/openhub-<x>`: `model`, `wire`, `validate`, operaciones con su sobre y
    vocabulario de estados; `registry!(pub XOps {...})`; tests con fixtures (doc + sandbox).

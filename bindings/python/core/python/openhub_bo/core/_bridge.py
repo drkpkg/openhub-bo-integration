@@ -9,7 +9,7 @@ from typing import Any
 from .errors import error_from_core
 
 SUPPORTED_PROTOCOL = 2
-"""Core FFI protocol this Python code speaks (see ``openhub_core::ffi``)."""
+"""Core FFI protocol this Python code speaks (see ``openhub_bo_core::ffi``)."""
 
 
 class Native:

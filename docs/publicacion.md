@@ -1,4 +1,4 @@
-# Publicación en PyPI, npm y RubyGems
+# Publicación en crates.io, PyPI, RubyGems y npm
 
 Todos los paquetes se publican juntos, con la misma versión, desde
 `.github/workflows/release.yml` al subir un tag `vX.Y.Z`. Ningún registro necesita
@@ -7,31 +7,61 @@ registro que la publicación viene de este workflow.
 
 | Registro | Paquetes | Artefactos |
 |---|---|---|
+| crates.io | `openhub-bo-core`, `-qr`, `-fx`, `-accounts`, `-payouts` | crates sans-IO en Rust (sin dependencias de red ni runtime) |
 | PyPI | `openhub-bo-core`, `-qr`, `-fx`, `-accounts`, `-payouts`, `openhub-bo` | wheels abi3 (Python ≥ 3.10) para Linux glibc/musl x86_64/aarch64, macOS x86_64/arm64, Windows x64, más sdist |
 | npm | `@openhub-bo/core`, `qr`, `fx`, `accounts`, `payouts` | un paquete por producto con su `.wasm` (Node ≥ 18, cualquier plataforma) |
 | RubyGems | `openhub-bo-core`, `-qr`, `-fx`, `-accounts`, `-payouts`, `openhub-bo` | gemas precompiladas (Ruby 3.2, 3.3, 3.4 y 4.0) para Linux glibc/musl x86_64/aarch64, macOS x86_64/arm64, Windows x64, más la gema fuente (compila con Rust) |
 
 ## Configuración inicial (una sola vez)
 
-Valores comunes para los tres registros:
+Valores comunes para los cuatro registros:
 
 - Owner / repositorio: `drkpkg` / `openhub-bo-integration`
 - Workflow: `release.yml`
-- Environment: el indicado para cada registro (`pypi`, `testpypi`, `npm`, `rubygems`)
+- Environment: el indicado para cada registro (`crates-io`, `pypi-<paquete>`, `testpypi-<paquete>`, `npm`, `rubygems`)
 
-En GitHub (*Settings → Environments*) conviene crear esos cuatro environments con
+En GitHub (*Settings → Environments*) conviene crear esos environments con
 **Required reviewers**: así cada publicación espera tu aprobación.
+
+### crates.io
+
+1. Inicia sesión en <https://crates.io> con tu cuenta de GitHub y verifica tu correo en
+   *Account Settings* (crates.io no deja publicar sin correo verificado).
+2. **Primera publicación:** crates.io solo permite configurar *trusted publishing* sobre un crate
+   que ya existe. Para la 0.1.0 crea un token en <https://crates.io/settings/tokens> con los
+   scopes `publish-new` y `publish-update`, restringido a `openhub-bo-*` y con expiración corta, y
+   guárdalo como secret `CARGO_REGISTRY_TOKEN` del environment `crates-io`.
+3. Después de la primera publicación, en cada crate ve a *Settings → Trusted Publishing* y
+   registra los valores de arriba con el environment `crates-io`. Luego borra el secret
+   `CARGO_REGISTRY_TOKEN` y revoca el token: el workflow usa OIDC cuando el secret no existe.
 
 ### PyPI (y TestPyPI)
 
 1. Activa 2FA en tu cuenta.
 2. En <https://pypi.org/manage/account/publishing/>, en *Add a new pending publisher*, registra
-   **cada uno de los 6 paquetes** con los valores de arriba y el environment `pypi`.
-   Con un *pending publisher* el nombre queda reservado hasta la primera publicación.
-3. Opcional, para ensayar: crea una cuenta en <https://test.pypi.org> y repite el paso 2 con el
-   environment `testpypi`. Luego, en *Actions → Release → Run workflow*, elige `testpypi`.
+   **cada uno de los 6 paquetes** con los valores de arriba y **su propio environment**. PyPI
+   rechaza dos *pending publishers* con el mismo repositorio, workflow y environment, por eso el
+   workflow publica cada proyecto en su propio job:
+
+   | Proyecto PyPI | Environment |
+   |---|---|
+   | `openhub-bo-core` | `pypi-core` |
+   | `openhub-bo-qr` | `pypi-qr` |
+   | `openhub-bo-fx` | `pypi-fx` |
+   | `openhub-bo-accounts` | `pypi-accounts` |
+   | `openhub-bo-payouts` | `pypi-payouts` |
+   | `openhub-bo` | `pypi-meta` |
+
+   Un *pending publisher* no reserva el nombre: hasta la primera publicación otro usuario podría
+   tomarlo.
+3. Opcional, para ensayar: crea una cuenta en <https://test.pypi.org> y repite el paso 2 con los
+   environments `testpypi-<paquete>`. Luego, en *Actions → Release → Run workflow*, elige `testpypi`.
 
 ### npm
+
+npm está **desactivado** en el workflow hasta que la organización exista: el tag no publica en
+npm salvo que la variable de repositorio `PUBLISH_NPM` (*Settings → Secrets and variables →
+Actions → Variables*) valga `true`.
 
 1. Crea la cuenta en <https://www.npmjs.com/signup> y activa 2FA.
 2. Crea la organización **`openhub-bo`** (*Add Organization*, plan gratuito para paquetes
@@ -61,7 +91,7 @@ git tag v0.2.0 && git push origin v0.2.0      # dispara la publicación
 ```
 
 El workflow verifica que el tag coincida con las versiones (`scripts/release.py check --tag`).
-Luego construye todo, prueba la instalación de los artefactos sin Rust (wheels en Linux, macOS
+Luego construye todo, empaqueta y compila los crates (`cargo publish --dry-run`), prueba la instalación de los artefactos sin Rust (wheels en Linux, macOS
 y Windows, npm en Node 18, gemas en Ruby 3.2 y 4.0) y publica. Al final crea el release de
 GitHub con las notas del CHANGELOG y todos los artefactos.
 

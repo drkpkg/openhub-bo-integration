@@ -13,6 +13,6 @@ name = "openhub_bo_fx_wasm"
 crate-type = ["cdylib"]
 
 [dependencies]
-openhub-core = { path = "../../../../crates/openhub-core" }
-openhub-fx = { path = "../../../../crates/openhub-fx" }
+openhub-bo-core = { path = "../../../../crates/openhub-bo-core" }
+openhub-bo-fx = { path = "../../../../crates/openhub-bo-fx" }
 wasm-bindgen = "0.2"

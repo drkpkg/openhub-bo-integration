@@ -1,6 +1,6 @@
 import { errorFromCore } from "./errors.js";
 
-/** Core FFI protocol this package speaks (see `openhub_core::ffi`). */
+/** Core FFI protocol this package speaks (see `openhub_bo_core::ffi`). */
 export const SUPPORTED_PROTOCOL = 2;
 
 /** What every package's WASM module exports. */

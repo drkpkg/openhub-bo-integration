@@ -12,6 +12,6 @@ crate-type = ["cdylib"]
 
 [dependencies]
 magnus = "0.9"
-openhub-core = { path = "vendor/openhub-core" }
-openhub-fx = { path = "vendor/openhub-fx" }
+openhub-bo-core = { path = "vendor/openhub-bo-core" }
+openhub-bo-fx = { path = "vendor/openhub-bo-fx" }
 

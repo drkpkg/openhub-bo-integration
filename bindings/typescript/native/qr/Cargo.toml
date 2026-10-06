@@ -13,6 +13,6 @@ name = "openhub_bo_qr_wasm"
 crate-type = ["cdylib"]
 
 [dependencies]
-openhub-core = { path = "../../../../crates/openhub-core" }
-openhub-qr = { path = "../../../../crates/openhub-qr" }
+openhub-bo-core = { path = "../../../../crates/openhub-bo-core" }
+openhub-bo-qr = { path = "../../../../crates/openhub-bo-qr" }
 wasm-bindgen = "0.2"

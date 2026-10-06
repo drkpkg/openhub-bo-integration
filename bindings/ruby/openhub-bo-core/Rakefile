@@ -5,6 +5,6 @@ require_relative "../support/native_gem"
 NativeGemTasks.define(
   gem_dir: __dir__,
   pkg: "core",
-  crates: ["openhub-core"],
+  crates: ["openhub-bo-core"],
   gemspec_path: File.expand_path("openhub-bo-core.gemspec", __dir__)
 )

@@ -5,7 +5,7 @@
     python3 scripts/release.py set-version 0.2.0      # bump every manifest
     python3 scripts/release.py sync                   # copy LICENSE/NOTICE into each package
 
-Every package (Rust crates, PyPI, npm, RubyGems) shares one version. Internal
+Every package (crates.io, PyPI, npm, RubyGems) shares one version. Internal
 dependency ranges allow any release of the same minor series (">=0.2.0,<0.3.0",
 "~> 0.2.0"), so a patch release of one package keeps working with the others.
 Standard library only.
@@ -26,6 +26,7 @@ SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
 
 # Directories that publish a package and must ship LICENSE/NOTICE.
 PACKAGE_DIRS = [
+    *(f"crates/openhub-bo-{p}" for p in PKGS),
     *(f"bindings/python/{p}" for p in [*PKGS, "meta"]),
     *(f"bindings/typescript/packages/{p}" for p in PKGS),
     *(f"bindings/ruby/openhub-bo-{p}" for p in PKGS),
@@ -49,6 +50,8 @@ def rules(version: str) -> list[tuple[str, re.Pattern[str], str]]:
 
     for ws in ["Cargo.toml", "bindings/typescript/Cargo.toml"]:
         add(ws, r'^\[workspace\.package\]\nversion = "([^"]+)"', version)
+    for p in PKGS[1:]:
+        add(f"crates/openhub-bo-{p}/Cargo.toml", r'^openhub-bo-core = \{ version = "([^"]+)"', version)
     add("bindings/python/meta/pyproject.toml", r'^version = "([^"]+)"', version)
     for p in [*PKGS[1:], "meta"]:
         add(f"bindings/python/{p}/pyproject.toml", r'"openhub-bo-core([^"]+)"', py_range)

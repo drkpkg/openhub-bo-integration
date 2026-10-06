@@ -13,6 +13,6 @@ name = "openhub_bo_payouts_wasm"
 crate-type = ["cdylib"]
 
 [dependencies]
-openhub-core = { path = "../../../../crates/openhub-core" }
-openhub-payouts = { path = "../../../../crates/openhub-payouts" }
+openhub-bo-core = { path = "../../../../crates/openhub-bo-core" }
+openhub-bo-payouts = { path = "../../../../crates/openhub-bo-payouts" }
 wasm-bindgen = "0.2"
