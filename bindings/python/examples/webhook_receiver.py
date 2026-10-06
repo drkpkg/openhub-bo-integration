@@ -99,9 +99,10 @@ class Handler(BaseHTTPRequestHandler):
             # Unknown payload shape: keep it (that's the point) and still ack.
             entry["error"] = f"{type(exc).__name__}: {exc}"
         _record(entry)
+        outcome = entry.get("parsed") or entry.get("error")
         print(
-            f"[{entry['received_at']}] POST {self.path} -> {status} "
-            f"{entry.get('parsed') or entry.get('error')} confirmed={entry.get('confirmed_status')}",
+            f"[{entry['received_at']}] POST {self.path} -> {status} {outcome} "
+            f"confirmed={entry.get('confirmed_status')}",
             flush=True,
         )
         self._reply(status, reply)
