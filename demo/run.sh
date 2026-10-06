@@ -4,7 +4,8 @@
 #
 #   demo/run.sh            # reads CLIENT_ID / CLIENT_SECRET from ../.env
 #
-# Prints the three public URLs and the access password; Ctrl+C stops everything.
+# Prints the three public URLs; Ctrl+C stops everything. To restart only the
+# services (keeping the URLs), stop and run demo/serve.sh.
 # Quick tunnels need no Cloudflare account changes and live only while running.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -32,21 +33,11 @@ for lang in python typescript ruby; do
   done
   [ -n "${URL[$lang]}" ] || { echo "tunnel for $lang did not start, see $RUN/tunnel-$lang.log"; exit 1; }
 done
-export DEMO_LINKS="Python=${URL[python]},TypeScript=${URL[typescript]},Ruby=${URL[ruby]}"
-
-(cd "$ROOT/bindings/python" && PORT=8101 PUBLIC_URL="${URL[python]}" \
-  exec uv run --no-sync python "$ROOT/demo/python/server.py") > "$RUN/python.log" 2>&1 &
+printf 'URL_PYTHON=%s\nURL_TYPESCRIPT=%s\nURL_RUBY=%s\n' "${URL[python]}" "${URL[typescript]}" "${URL[ruby]}" > "$RUN/urls.env"
+"$ROOT/demo/serve.sh" &
 pids+=($!)
-(cd "$ROOT/demo/typescript" && PORT=8102 PUBLIC_URL="${URL[typescript]}" exec node server.ts) \
-  > "$RUN/typescript.log" 2>&1 &
-pids+=($!)
-(cd "$ROOT/demo/ruby" && PORT=8103 PUBLIC_URL="${URL[ruby]}" exec ruby \
-  -I"$ROOT/bindings/ruby/openhub-bo-core/lib" -I"$ROOT/bindings/ruby/openhub-bo-qr/lib" server.rb) \
-  > "$RUN/ruby.log" 2>&1 &
-pids+=($!)
-
 for lang in python typescript ruby; do
-  for _ in $(seq 1 30); do curl -sf "http://localhost:${PORT[$lang]}/health" >/dev/null && break; sleep 1; done
+  for _ in $(seq 1 60); do curl -sf "http://localhost:${PORT[$lang]}/health" >/dev/null && break; sleep 1; done
 done
 echo
 echo "OpenHub QR demo (usuario: demo, clave en $RUN/password)"

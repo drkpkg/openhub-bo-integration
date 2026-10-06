@@ -1,7 +1,7 @@
 /**
  * OpenHub QR demo service — TypeScript (@openhub-bo/qr).
  *
- * Serves demo/web/index.html and the demo API shared by the three language
+ * Serves its demo app (demo/apps/caja) and the demo API shared by the three language
  * services. Environment: CLIENT_ID, CLIENT_SECRET, DEMO_PASSWORD, PORT (8102),
  * PUBLIC_URL (optional; else derived from the Host header), DEMO_LINKS
  * (optional "Python=https://...,TypeScript=...,Ruby=...").
@@ -13,8 +13,13 @@ import { ApiError, OpenHubError, Session, ValidationError, Webhook, WebhookAuthE
 import { QrClient, parseWebhook, type GeneratedQr, type QrKind, type QrStatusInfo } from "@openhub-bo/qr";
 
 const LANGUAGE = "TypeScript";
+const APP = "caja";
+/** Per app: browsers share cookies across localhost ports. */
+const COOKIE = `demo_${APP}`;
 const MAX_AMOUNT = 10;
-const INDEX = readFileSync(new URL("../web/index.html", import.meta.url));
+const INDEX = readFileSync(new URL(`../apps/${APP}/index.html`, import.meta.url));
+const LOGIN = readFileSync(new URL("../web/login.html", import.meta.url));
+const sessions = new Set<string>();
 const VERSION = JSON.parse(
   readFileSync(new URL("../../bindings/typescript/packages/qr/package.json", import.meta.url), "utf8"),
 ).version as string;
@@ -29,6 +34,14 @@ const qrClient = new QrClient(
   new Session({ clientId: env("CLIENT_ID"), clientSecret: env("CLIENT_SECRET"), environment: "sandbox" }),
 );
 const events: Record<string, unknown>[] = [];
+/** "kind:reference" -> record shown by the app. */
+const payments = new Map<string, Record<string, unknown>>();
+
+/** Keeps the app's payment list in sync with what OpenHub reports. */
+function track(kind: string, reference: string, fields: Record<string, unknown>) {
+  const record = payments.get(`${kind}:${reference}`);
+  if (record) Object.assign(record, fields, { updatedAt: new Date().toISOString() });
+}
 
 const links = () =>
   (process.env["DEMO_LINKS"] ?? "")
@@ -72,12 +85,33 @@ function send(res: ServerResponse, status: number, body: string | Buffer, type =
 }
 const json = (res: ServerResponse, status: number, payload: unknown) => send(res, status, JSON.stringify(payload));
 
-function authorized(req: IncomingMessage, res: ServerResponse): boolean {
-  const expected = Buffer.from(`Basic ${Buffer.from(`demo:${PASSWORD}`).toString("base64")}`);
-  const got = Buffer.from(req.headers.authorization ?? "");
-  if (got.length === expected.length && timingSafeEqual(got, expected)) return true;
-  res.writeHead(401, { "WWW-Authenticate": 'Basic realm="openhub-demo"' }).end();
+const safeEqual = (a: string, b: string) => {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+};
+
+/** Session cookie (browser) or HTTP Basic (scripts). Never triggers the
+ * browser's Basic-auth dialog: pages redirect to /login, APIs get 401. */
+function authorized(req: IncomingMessage, res: ServerResponse, path: string): boolean {
+  if (safeEqual(req.headers.authorization ?? "", `Basic ${Buffer.from(`demo:${PASSWORD}`).toString("base64")}`))
+    return true;
+  const token = new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]+)`).exec(req.headers.cookie ?? "")?.[1];
+  if (token && sessions.has(token)) return true;
+  if (path === "/") res.writeHead(303, { Location: "/login" }).end();
+  else json(res, 401, { error: "unauthorized" });
   return false;
+}
+
+function login(req: IncomingMessage, res: ServerResponse, body: string) {
+  const password = new URLSearchParams(body).get("password") ?? "";
+  if (!safeEqual(password, PASSWORD)) return res.writeHead(303, { Location: "/login?error=1" }).end();
+  const token = randomBytes(24).toString("base64url");
+  sessions.add(token);
+  const secure = req.headers["x-forwarded-proto"] === "https" ? "; Secure" : "";
+  res
+    .writeHead(303, { Location: "/", "Set-Cookie": `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax${secure}` })
+    .end();
 }
 
 async function readBody(req: IncomingMessage): Promise<string> {
@@ -113,7 +147,21 @@ async function generate(req: IncomingMessage, form: Record<string, string>) {
     expiresIn: Number(form["expiresIn"] ?? 600),
     webhook: new Webhook({ url: webhookUrl, value: WEBHOOK_SECRET }),
   });
-  return qrJson(qr, webhookUrl);
+  const result = qrJson(qr, webhookUrl);
+  const now = new Date().toISOString();
+  payments.set(`${qr.kind}:${qr.reference}`, {
+    kind: qr.kind,
+    reference: qr.reference,
+    merchantReference: qr.merchantReference,
+    label: String(form["label"] ?? form["description"] ?? ""),
+    amount: qr.amount,
+    currency: qr.currency,
+    status: qr.status,
+    expiresAt: qr.expiresAt,
+    createdAt: now,
+    updatedAt: now,
+  });
+  return result;
 }
 
 async function webhook(req: IncomingMessage, res: ServerResponse, kind: QrKind, body: string) {
@@ -126,6 +174,7 @@ async function webhook(req: IncomingMessage, res: ServerResponse, kind: QrKind, 
     const n = parseWebhook(headers, body, new Webhook({ url: "", value: WEBHOOK_SECRET }));
     Object.assign(event, { reference: n.reference, status: n.status, amount: n.amount });
     event["confirmedStatus"] = (await qrClient.getQrStatus(n.reference, { kind })).status;
+    track(kind, n.reference, { status: event["confirmedStatus"], viaWebhook: true });
   } catch (err) {
     if (err instanceof WebhookAuthError) {
       status = 401;
@@ -148,28 +197,44 @@ const server = createServer(async (req, res) => {
       const body = await readBody(req);
       const hook = /^\/webhooks\/qr\/(simple|mld)$/.exec(path);
       if (hook) return await webhook(req, res, hook[1] as QrKind, body);
-      if (!authorized(req, res)) return;
+      if (path === "/login") return login(req, res, body);
+      if (!authorized(req, res, path)) return;
       if (path === "/api/qr") return await call(res, () => generate(req, JSON.parse(body || "{}")));
       const cancel = /^\/api\/qr\/simple\/(\d+)\/cancel$/.exec(path);
-      if (cancel) return await call(res, async () => statusJson(await qrClient.cancelQr(cancel[1]!)));
+      if (cancel)
+        return await call(res, async () => {
+          const result = statusJson(await qrClient.cancelQr(cancel[1]!));
+          track("simple", cancel[1]!, { status: result.status });
+          return result;
+        });
       return json(res, 404, { error: "not found" });
     }
-    if (!authorized(req, res)) return;
+    if (path === "/login") return send(res, 200, LOGIN, "text/html; charset=utf-8");
+    if (!authorized(req, res, path)) return;
     if (path === "/") return send(res, 200, INDEX, "text/html; charset=utf-8");
     if (path === "/api/info")
       return json(res, 200, {
         language: LANGUAGE,
+        app: APP,
         library: "@openhub-bo/qr",
         version: VERSION,
         environment: "sandbox",
         links: links(),
       });
     if (path === "/api/events") return json(res, 200, [...events].reverse());
+    if (path === "/api/payments")
+      return json(
+        res,
+        200,
+        [...payments.values()].sort((a, b) => String(b["createdAt"]).localeCompare(String(a["createdAt"]))),
+      );
     const status = /^\/api\/qr\/(simple|mld)\/(\d+)$/.exec(path);
     if (status)
-      return await call(res, async () =>
-        statusJson(await qrClient.getQrStatus(status[2]!, { kind: status[1] as QrKind })),
-      );
+      return await call(res, async () => {
+        const result = statusJson(await qrClient.getQrStatus(status[2]!, { kind: status[1] as QrKind }));
+        track(status[1]!, status[2]!, { status: result.status, payer: result.payer, payerBank: result.payerBank });
+        return result;
+      });
     json(res, 404, { error: "not found" });
   } catch (err) {
     console.error(err);

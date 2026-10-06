@@ -2,7 +2,7 @@
 
 # OpenHub QR demo service — Ruby (openhub-bo-qr gem).
 #
-# Serves demo/web/index.html and the demo API shared by the three language
+# Serves its demo app (demo/apps/cobros) and the demo API shared by the three language
 # services. Environment: CLIENT_ID, CLIENT_SECRET, DEMO_PASSWORD, PORT (8103),
 # PUBLIC_URL (optional; else derived from the Host header), DEMO_LINKS
 # (optional "Python=https://...,TypeScript=...,Ruby=...").
@@ -13,19 +13,34 @@ require "bigdecimal"
 require "json"
 require "openssl"
 require "securerandom"
+require "set"
 require "time"
+require "uri"
 require "webrick"
 require "openhub_bo/qr"
 
 LANGUAGE = "Ruby"
+APP = "cobros"
+COOKIE = "demo_#{APP}" # per app: browsers share cookies across localhost ports
 MAX_AMOUNT = BigDecimal("10")
-INDEX = File.binread(File.expand_path("../web/index.html", __dir__))
+INDEX = File.binread(File.expand_path("../apps/#{APP}/index.html", __dir__))
+LOGIN = File.binread(File.expand_path("../web/login.html", __dir__))
+SESSIONS = Set.new
 PASSWORD = ENV.fetch("DEMO_PASSWORD")
 WEBHOOK_SECRET = SecureRandom.urlsafe_base64(32)
 Core = OpenhubBo::Core
 QR = OpenhubBo::Qr::QrClient.new(Core::Session.new(ENV.fetch("CLIENT_ID"), ENV.fetch("CLIENT_SECRET")))
 EVENTS = []
 EVENTS_LOCK = Mutex.new
+PAYMENTS = {} # "kind:reference" -> record shown by the app
+
+# Keeps the app's payment list in sync with what OpenHub reports.
+def track(kind, reference, **fields)
+  EVENTS_LOCK.synchronize do
+    record = PAYMENTS["#{kind}:#{reference}"]
+    record&.merge!(fields, updatedAt: Time.now.utc.iso8601(3))
+  end
+end
 
 def links
   ENV.fetch("DEMO_LINKS", "").split(",").filter_map do |part|
@@ -63,14 +78,33 @@ def reply(res, status, payload, type = "application/json")
   res.body = type == "application/json" ? JSON.generate(payload) : payload
 end
 
-def authorized?(req, res)
-  expected = "Basic #{["demo:#{PASSWORD}"].pack('m0')}"
-  given = req["Authorization"].to_s
-  return true if given.bytesize == expected.bytesize && OpenSSL.fixed_length_secure_compare(given, expected)
+def secure_equal?(a, b) = a.bytesize == b.bytesize && OpenSSL.fixed_length_secure_compare(a, b)
 
-  res.status = 401
-  res["WWW-Authenticate"] = 'Basic realm="openhub-demo"'
+def redirect(res, location)
+  res.status = 303
+  res["Location"] = location
+end
+
+# Session cookie (browser) or HTTP Basic (scripts). Never triggers the browser's
+# Basic-auth dialog: pages redirect to /login, APIs get 401.
+def authorized?(req, res)
+  return true if secure_equal?(req["Authorization"].to_s, "Basic #{["demo:#{PASSWORD}"].pack('m0')}")
+
+  return true if req.cookies.any? { |c| c.name == COOKIE && SESSIONS.include?(c.value) }
+
+  req.path == "/" ? redirect(res, "/login") : reply(res, 401, { error: "unauthorized" })
   false
+end
+
+def login(req, res)
+  password = URI.decode_www_form(req.body.to_s).to_h.fetch("password", "")
+  return redirect(res, "/login?error=1") unless secure_equal?(password, PASSWORD)
+
+  token = SecureRandom.urlsafe_base64(24)
+  SESSIONS << token
+  secure = req["X-Forwarded-Proto"] == "https" ? "; Secure" : ""
+  res["Set-Cookie"] = "#{COOKIE}=#{token}; Path=/; HttpOnly; SameSite=Lax#{secure}"
+  redirect(res, "/")
 end
 
 def call(res)
@@ -100,7 +134,28 @@ def generate(req, form)
     expires_in: Integer(form.fetch("expiresIn", 600)), kind: kind,
     webhook: Core::Webhook.new(url: webhook_url, value: WEBHOOK_SECRET)
   )
-  qr_json(qr, webhook_url)
+  result = qr_json(qr, webhook_url)
+  now = Time.now.utc.iso8601(3)
+  EVENTS_LOCK.synchronize do
+    PAYMENTS["#{qr.kind}:#{qr.reference}"] = {
+      kind: qr.kind, reference: qr.reference, merchantReference: qr.merchant_reference,
+      label: (form["label"] || form["description"]).to_s, amount: decimal_s(qr.amount), currency: qr.currency,
+      status: qr.status, expiresAt: result[:expiresAt], createdAt: now, updatedAt: now
+    }
+  end
+  result
+end
+
+def status_and_track(kind, reference)
+  result = status_json(QR.get_qr_status(reference, kind: kind))
+  track(kind, reference, status: result[:status], payer: result[:payer], payerBank: result[:payerBank])
+  result
+end
+
+def cancel_and_track(reference)
+  result = status_json(QR.cancel_qr(reference))
+  track(:simple, reference, status: result[:status])
+  result
 end
 
 def webhook(req, res, kind)
@@ -111,6 +166,7 @@ def webhook(req, res, kind)
     n = OpenhubBo::Qr.parse_webhook(headers, req.body.to_s, webhook: Core::Webhook.new(url: "", value: WEBHOOK_SECRET))
     event.merge!(reference: n.reference, status: n.status, amount: decimal_s(n.amount))
     event[:confirmedStatus] = QR.get_qr_status(n.reference, kind: kind).status
+    track(kind, n.reference, status: event[:confirmedStatus], viaWebhook: true)
   rescue Core::WebhookAuthError => e
     status = 401
     event[:error] = "rechazado: #{e.message}"
@@ -136,21 +192,25 @@ server.mount_proc("/") do |req, res|
     reply(res, 200, { ok: true, language: LANGUAGE })
   elsif req.request_method == "POST" && (m = %r{\A/webhooks/qr/(simple|mld)\z}.match(path))
     webhook(req, res, m[1].to_sym)
+  elsif path == "/login"
+    req.request_method == "POST" ? login(req, res) : reply(res, 200, LOGIN, "text/html; charset=utf-8")
   elsif !authorized?(req, res)
     nil
   elsif req.request_method == "GET" && path == "/"
     reply(res, 200, INDEX, "text/html; charset=utf-8")
   elsif req.request_method == "GET" && path == "/api/info"
-    reply(res, 200, { language: LANGUAGE, library: "openhub-bo-qr (gem)",
+    reply(res, 200, { language: LANGUAGE, app: APP, library: "openhub-bo-qr (gem)",
                       version: OpenhubBo::Qr::Native.version, environment: "sandbox", links: links })
+  elsif req.request_method == "GET" && path == "/api/payments"
+    reply(res, 200, EVENTS_LOCK.synchronize { PAYMENTS.values.sort_by { |r| r[:createdAt] }.reverse })
   elsif req.request_method == "GET" && path == "/api/events"
     reply(res, 200, EVENTS_LOCK.synchronize { EVENTS.reverse })
   elsif req.request_method == "POST" && path == "/api/qr"
     call(res) { generate(req, JSON.parse(req.body || "{}")) }
   elsif req.request_method == "GET" && (m = %r{\A/api/qr/(simple|mld)/(\d+)\z}.match(path))
-    call(res) { status_json(QR.get_qr_status(m[2], kind: m[1].to_sym)) }
+    call(res) { status_and_track(m[1].to_sym, m[2]) }
   elsif req.request_method == "POST" && (m = %r{\A/api/qr/simple/(\d+)/cancel\z}.match(path))
-    call(res) { status_json(QR.cancel_qr(m[1])) }
+    call(res) { cancel_and_track(m[1]) }
   else
     reply(res, 404, { error: "not found" })
   end

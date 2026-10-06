@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tienda Sajama</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900 antialiased">
+<header class="bg-white border-b border-gray-200">
+  <div class="mx-auto max-w-6xl px-4 py-4 flex flex-wrap items-center gap-3">
+    <div class="h-9 w-9 rounded-lg bg-emerald-600 text-white grid place-items-center font-semibold">S</div>
+    <div>
+      <h1 class="text-lg font-semibold leading-tight">Tienda Sajama</h1>
+      <p class="text-sm text-gray-500">Productos andinos · pago con QR</p>
+    </div>
+    <span id="powered" class="ml-auto inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">Python</span>
+  </div>
+</header>
+
+<main class="mx-auto max-w-6xl px-4 py-8 grid gap-8 lg:grid-cols-[1fr_360px] items-start">
+  <section>
+    <h2 class="text-base font-semibold mb-4">Productos</h2>
+    <div id="products" class="grid gap-4 sm:grid-cols-2"></div>
+
+    <h2 class="text-base font-semibold mt-10 mb-4">Mis pedidos</h2>
+    <div class="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+      <table class="min-w-full text-sm">
+        <thead class="bg-gray-50 text-left text-gray-500">
+          <tr><th class="px-4 py-2 font-medium">Pedido</th><th class="px-4 py-2 font-medium">Pago</th>
+              <th class="px-4 py-2 font-medium">Monto</th><th class="px-4 py-2 font-medium">Estado</th>
+              <th class="px-4 py-2 font-medium">Ref. ATC</th></tr>
+        </thead>
+        <tbody id="orders" class="divide-y divide-gray-100">
+          <tr><td colspan="5" class="px-4 py-6 text-center text-gray-500">Todavía no hiciste pedidos.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <aside class="space-y-4 lg:sticky lg:top-6">
+    <div id="cartCard" class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <h2 class="text-base font-semibold">Tu carrito</h2>
+      <div id="cart" class="mt-3 divide-y divide-gray-100 text-sm"></div>
+      <div class="mt-4 flex justify-between border-t border-gray-200 pt-4 text-base font-semibold">
+        <span>Total</span><span id="total">Bs 0,00</span>
+      </div>
+      <fieldset class="mt-4 space-y-2">
+        <legend class="text-sm font-medium text-gray-700 mb-2">Método de pago</legend>
+        <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-3 has-[:checked]:border-emerald-600 has-[:checked]:bg-emerald-50">
+          <input type="radio" name="kind" value="simple" checked class="mt-1 accent-emerald-600">
+          <span class="text-sm"><span class="font-medium">QR Simple</span><span class="block text-gray-500">Desde la app de cualquier banco</span></span>
+        </label>
+        <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-3 has-[:checked]:border-emerald-600 has-[:checked]:bg-emerald-50">
+          <input type="radio" name="kind" value="mld" class="mt-1 accent-emerald-600">
+          <span class="text-sm"><span class="font-medium">QR MLD-BCB</span><span class="block text-gray-500">Estándar del Banco Central de Bolivia</span></span>
+        </label>
+      </fieldset>
+      <button id="pay" disabled class="mt-5 w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">Pagar con QR</button>
+      <p id="payErr" class="mt-2 text-sm text-red-600"></p>
+    </div>
+    <div id="checkout" hidden class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm text-center"></div>
+  </aside>
+</main>
+
+<footer id="footer" class="mx-auto max-w-6xl px-4 pb-10 text-xs text-gray-500"></footer>
+
+<script>
+const PRODUCTS = [
+  { id: "cafe", name: "Café de altura", note: "Grano tostado · 250 g", price: 2.5, tint: "bg-amber-100 text-amber-800" },
+  { id: "quinua", name: "Quinua real", note: "Grano lavado · 500 g", price: 3.0, tint: "bg-yellow-100 text-yellow-800" },
+  { id: "choco", name: "Chocolate 70%", note: "Cacao amazónico · 80 g", price: 1.5, tint: "bg-orange-100 text-orange-800" },
+  { id: "api", name: "Api morado", note: "Mezcla instantánea · 200 g", price: 1.0, tint: "bg-purple-100 text-purple-800" },
+];
+const STATUS = {
+  pending: ["Esperando pago", "bg-amber-50 text-amber-700 ring-amber-600/20"],
+  paid: ["Pagado", "bg-emerald-50 text-emerald-700 ring-emerald-600/20"],
+  cancelled: ["Cancelado", "bg-gray-100 text-gray-600 ring-gray-500/20"],
+  expired: ["Expirado", "bg-gray-100 text-gray-600 ring-gray-500/20"],
+  error: ["Error", "bg-red-50 text-red-700 ring-red-600/20"],
+};
+const cart = new Map();
+let active = null, poll = null, timer = null, orderSeq = Math.floor(Date.now() / 1000) % 10000;
+const $ = (id) => document.getElementById(id);
+const bs = (n) => "Bs " + Number(n).toLocaleString("es-BO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const esc = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const badge = (s) => { const [label, cls] = STATUS[s] || [s, "bg-gray-100 text-gray-600 ring-gray-500/20"];
+  return `<span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${cls}">${esc(label)}</span>`; };
+const btn = "rounded-lg px-3 py-2 text-sm font-semibold";
+const btnSecondary = `${btn} bg-white text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50`;
+const btnPrimary = `${btn} bg-emerald-600 text-white hover:bg-emerald-700`;
+
+async function api(path, options = {}) {
+  const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
+  if (res.status === 401) { location.href = "/login"; throw new Error("Sesión expirada"); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`${data.error || res.statusText}${data.code ? ` (${data.code})` : ""}`);
+  return data;
+}
+
+function renderProducts() {
+  $("products").innerHTML = PRODUCTS.map((p) => `
+    <article class="flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div class="m-3 mb-0 grid h-24 place-items-center rounded-lg ${p.tint} text-sm font-medium">${esc(p.name)}</div>
+      <div class="flex flex-1 flex-col gap-1 p-4">
+        <h3 class="text-sm font-semibold">${esc(p.name)}</h3>
+        <p class="flex-1 text-sm text-gray-500">${esc(p.note)}</p>
+        <div class="mt-2 flex items-center justify-between">
+          <span class="font-semibold">${bs(p.price)}</span>
+          <button data-add="${p.id}" class="${btnSecondary}">Agregar</button>
+        </div>
+      </div>
+    </article>`).join("");
+}
+
+const total = () => [...cart].reduce((t, [id, q]) => t + PRODUCTS.find((p) => p.id === id).price * q, 0);
+
+function renderCart() {
+  const items = [...cart].filter(([, q]) => q > 0);
+  $("cart").innerHTML = items.length ? items.map(([id, q]) => {
+    const p = PRODUCTS.find((x) => x.id === id);
+    return `<div class="flex items-center gap-3 py-2">
+      <span class="flex-1">${esc(p.name)}</span>
+      <span class="inline-flex items-center rounded-md ring-1 ring-inset ring-gray-300">
+        <button data-dec="${id}" class="px-2 py-0.5 text-gray-600 hover:bg-gray-50">−</button>
+        <span class="w-6 text-center">${q}</span>
+        <button data-add="${id}" class="px-2 py-0.5 text-gray-600 hover:bg-gray-50">+</button></span>
+      <span class="w-20 text-right">${bs(p.price * q)}</span></div>`;
+  }).join("") : `<p class="py-2 text-gray-500">Agrega productos para empezar.</p>`;
+  $("total").textContent = bs(total());
+  $("pay").disabled = !items.length || total() > 10 || !!active;
+  $("payErr").textContent = total() > 10 ? "La demo admite pedidos de hasta Bs 10." : "";
+}
+
+document.addEventListener("click", (ev) => {
+  const add = ev.target.closest("[data-add]"), dec = ev.target.closest("[data-dec]");
+  if (add) cart.set(add.dataset.add, (cart.get(add.dataset.add) || 0) + 1);
+  if (dec) cart.set(dec.dataset.dec, Math.max(0, (cart.get(dec.dataset.dec) || 0) - 1));
+  if (add || dec) renderCart();
+});
+
+function countdown(expiresAt) {
+  clearInterval(timer);
+  const tick = () => {
+    const left = Math.max(0, Math.round((new Date(expiresAt) - Date.now()) / 1000));
+    const el = $("left"); if (el) el.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+  };
+  tick(); timer = setInterval(tick, 1000);
+}
+
+function renderCheckout(status, message) {
+  const c = $("checkout"); c.hidden = false; $("cartCard").hidden = true;
+  if (status === "paid") {
+    clearInterval(poll); clearInterval(timer);
+    c.innerHTML = `<div class="rounded-lg bg-emerald-50 p-4 text-left">
+        <p class="font-semibold text-emerald-800">Pedido confirmado</p>
+        <p class="mt-1 text-sm text-emerald-700">${esc(active.label)} · ${bs(active.amount)}</p>
+        <p class="mt-1 text-xs text-emerald-700">Ref. ATC ${esc(active.reference)} · confirmado por OpenHub</p></div>
+      <button id="newOrder" class="mt-4 w-full ${btnPrimary}">Seguir comprando</button>`;
+    return;
+  }
+  const final = status !== "pending";
+  if (final) { clearInterval(poll); clearInterval(timer); }
+  c.innerHTML = `
+    <p class="text-sm font-semibold">${esc(active.label)}</p>
+    <img alt="QR de pago" src="${active.qrDataUri}" class="mx-auto my-4 h-52 w-52 rounded-lg border border-gray-200 bg-white [image-rendering:pixelated] ${final ? "opacity-25" : ""}">
+    <p class="text-2xl font-semibold">${bs(active.amount)}</p>
+    <p class="mt-1 text-xs text-gray-500">${active.kind === "mld" ? "QR MLD-BCB" : "QR Simple"} · Ref. ATC ${esc(active.reference)}</p>
+    <div class="mt-3 flex items-center justify-center gap-2 text-sm">${badge(status)}
+      ${final ? "" : `<span class="text-gray-500">vence en <span id="left" class="font-medium text-gray-700">…</span></span>`}</div>
+    ${message ? `<p class="mt-2 text-xs text-gray-500">${esc(message)}</p>` : ""}
+    <div class="mt-4 flex flex-wrap justify-center gap-2">
+      ${final ? `<button id="newOrder" class="${btnPrimary}">Nuevo pedido</button>`
+              : `<button id="check" class="${btnSecondary}">Ya pagué, verificar</button>
+                 ${active.kind === "simple" ? `<button id="cancel" class="${btnSecondary}">Cancelar pedido</button>` : ""}`}
+    </div>
+    <p id="coErr" class="mt-2 text-sm text-red-600"></p>`;
+  if (!final) countdown(active.expiresAt);
+}
+
+async function refresh() {
+  if (!active) return;
+  try { const st = await api(`/api/qr/${active.kind}/${active.reference}`); renderCheckout(st.status, st.message); loadOrders(); }
+  catch (e) { const el = $("coErr"); if (el) el.textContent = e.message; }
+}
+
+$("checkout").addEventListener("click", async (ev) => {
+  if (ev.target.id === "check") refresh();
+  if (ev.target.id === "cancel") {
+    try { const st = await api(`/api/qr/simple/${active.reference}/cancel`, { method: "POST" }); renderCheckout(st.status, st.message); loadOrders(); }
+    catch (e) { $("coErr").textContent = e.message; }
+  }
+  if (ev.target.id === "newOrder") { active = null; cart.clear(); $("checkout").hidden = true; $("cartCard").hidden = false; renderCart(); }
+});
+
+$("pay").addEventListener("click", async () => {
+  const count = [...cart].reduce((t, [, q]) => t + q, 0);
+  const label = `Pedido #${++orderSeq} · ${count} producto${count === 1 ? "" : "s"}`;
+  $("pay").disabled = true; $("payErr").textContent = "";
+  try {
+    active = await api("/api/qr", { method: "POST", body: JSON.stringify({
+      kind: document.querySelector('input[name="kind"]:checked').value,
+      amount: total().toFixed(2), description: `Tienda Sajama ${label}`, label, expiresIn: 600 }) });
+    active.label = label;
+    renderCheckout(active.status);
+    clearInterval(poll); poll = setInterval(refresh, 5000);
+    loadOrders();
+  } catch (e) { $("payErr").textContent = e.message; }
+  renderCart();
+});
+
+async function loadOrders() {
+  try {
+    const rows = await api("/api/payments");
+    if (!rows.length) return;
+    $("orders").innerHTML = rows.map((r) => `<tr>
+      <td class="px-4 py-2">${esc(r.label)}</td>
+      <td class="px-4 py-2 text-gray-500">${r.kind === "mld" ? "QR MLD-BCB" : "QR Simple"}</td>
+      <td class="px-4 py-2">${bs(r.amount)}</td><td class="px-4 py-2">${badge(r.status)}</td>
+      <td class="px-4 py-2 font-mono text-xs text-gray-500">${esc(r.reference)}</td></tr>`).join("");
+  } catch {}
+}
+
+(async () => {
+  renderProducts(); renderCart();
+  const info = await api("/api/info");
+  $("powered").textContent = `${info.language} · ${info.library} ${info.version}`;
+  $("footer").innerHTML = `Integración real con el sandbox de Red Enlace (ATC) usando <code class="font-mono">${esc(info.library)}</code> (${esc(info.language)}).
+    Otras demos: ${(info.links || []).filter((l) => l.language !== info.language)
+      .map((l) => `<a class="text-emerald-700 hover:underline" href="${esc(l.url)}">${esc(l.language)}</a>`).join(" · ")}`;
+  loadOrders(); setInterval(loadOrders, 8000);
+})();
+</script>
+</body>
+</html>
