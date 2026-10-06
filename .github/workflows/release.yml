@@ -74,6 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: crates-io
     permissions:
+      contents: read # checkout: a job-level permissions block drops the workflow default
       id-token: write # trusted publishing
     env:
       HAS_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN != '' }}
